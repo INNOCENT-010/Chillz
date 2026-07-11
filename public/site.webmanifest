@@ -1,0 +1,24 @@
+{
+  "name": "Chillz",
+  "short_name": "Chillz",
+  "description": "Discover Lagos & Port Harcourt",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#3A0080",
+  "theme_color": "#3A0080",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/chillz-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

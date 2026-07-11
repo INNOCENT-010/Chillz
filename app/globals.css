@@ -1,0 +1,69 @@
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: 'Syne', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  font-family: var(--font-body);
+  background: #F7F5FA;
+  color: #0A0A0A;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #E4DCF0; border-radius: 999px; }
+
+/* Skeleton shimmer */
+.skeleton {
+  background: linear-gradient(90deg, #F2EEF9 25%, #E4DCF0 50%, #F2EEF9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Card gradient overlay */
+.card-overlay {
+  background: linear-gradient(180deg, transparent 40%, rgba(61, 0, 102, 0.85) 100%);
+}
+
+/* Glow effects */
+.glow-green {
+  box-shadow: 0 0 20px rgba(0, 200, 83, 0.4);
+}
+.glow-purple {
+  box-shadow: 0 0 20px rgba(91, 14, 166, 0.4);
+}
+
+/* Tap feedback */
+.tap-effect {
+  transition: transform 0.1s ease, opacity 0.1s ease;
+}
+.tap-effect:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+
+/* Hide scrollbar but keep scroll */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Safe area for bottom nav on mobile */
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}

@@ -1,0 +1,717 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+"use client";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { MainLayout } from "@/components/layout/main-layout";
+import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Search, X, MapPin, SlidersHorizontal, ArrowLeft,
+  Heart, ChevronDown, Star, Home, Wifi, Car, Waves,
+  Dumbbell, Coffee, Shield, CheckCircle, Zap, Snowflake,
+} from "lucide-react";
+import Link from "next/link";
+import { formatCurrency } from "@/lib/utils";
+import { useAuthStore } from "@/store/auth";
+
+const ACCENT    = "#2563EB";
+const ACCENT_BG = "#DBEAFE";
+
+const APT_TYPES      = ["Studio","1 Bedroom","2 Bedroom","3 Bedroom","Duplex","Penthouse","Serviced","Self-contained"];
+const FEATURES       = ["WiFi","Generator","CCTV","Gym","Pool","Security","Parking","Kitchen","Washing Machine","Air Conditioning","Balcony"];
+const PRICE_TIERS    = [
+  { label:"Budget",  icon:"💚", sub:"Under ₦15k/night", max:15000     },
+  { label:"Mid",     icon:"💛", sub:"₦15k–₦50k",        max:50000     },
+  { label:"Premium", icon:"💜", sub:"₦50k+",             max:999999999 },
+];
+// Duration: min_nights thresholds
+// Per Night  → min_nights <= 1
+// Weekly     → min_nights 2–6
+// Monthly    → min_nights >= 7
+const DURATION_OPTIONS = [
+  { label: "Per Night", minMin: 0, maxMin: 1  },
+  { label: "Weekly",    minMin: 2, maxMin: 6  },
+  { label: "Monthly",   minMin: 7, maxMin: 999 },
+];
+
+const AMENITY_ICONS: Record<string, any> = {
+  "WiFi": Wifi, "Parking": Car, "Pool": Waves, "Gym": Dumbbell,
+  "Breakfast Included": Coffee, "Generator": Zap, "Security": Shield,
+  "AC": Snowflake, "Air Conditioning": Snowflake, "CCTV": Shield,
+};
+
+function haversineKm(la1:number,ln1:number,la2:number,ln2:number){
+  const R=6371,dL=((la2-la1)*Math.PI)/180,dN=((ln2-ln1)*Math.PI)/180;
+  const a=Math.sin(dL/2)**2+Math.cos((la1*Math.PI)/180)*Math.cos((la2*Math.PI)/180)*Math.sin(dN/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function AptCard({ vendor }: { vendor: any }) {
+  const venue     = vendor.venue || {};
+  const listings  = vendor.listings || [];
+
+  const venueImgs   = venue.images || [];
+  const listingImgs = listings.flatMap((l: any) => l.images || []);
+  const allImages   = venueImgs.length ? venueImgs : listingImgs;
+
+  const [imgIndex, setImgIndex] = useState(0);
+  const [pressing, setPressing] = useState(false);
+  const pressTimer  = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pressStart  = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const startPress = useCallback(() => {
+    if (allImages.length <= 1) return;
+    pressStart.current = setTimeout(() => {
+      setPressing(true);
+      pressTimer.current = setInterval(() => {
+        setImgIndex(i => (i + 1) % allImages.length);
+      }, 800);
+    }, 300);
+  }, [allImages.length]);
+
+  const endPress = useCallback(() => {
+    if (pressStart.current) clearTimeout(pressStart.current);
+    if (pressTimer.current) clearInterval(pressTimer.current);
+    setPressing(false);
+  }, []);
+
+  const topAmenities = (listings[0]?.amenities || venue.filters || []).slice(0, 3);
+  const roomTypes = [...new Set(listings.map((l: any) => l.room_type).filter(Boolean))] as string[];
+  const minNights = listings.reduce((min: number, l: any) => {
+    const n = l.min_nights || 1;
+    return n < min ? n : min;
+  }, listings[0]?.min_nights || 1);
+
+  const rating      = venue.rating || 0;
+  const reviewCount = venue.review_count || 0;
+
+  return (
+    <Link href={`/apartments/${vendor.id}`} style={{ textDecoration: "none", display: "block", marginBottom: 14 }}>
+      <div style={{ backgroundColor: "#FFFFFF", borderRadius: 20, overflow: "hidden", boxShadow: "0 2px 12px rgba(37,99,235,0.08)", border: "1.5px solid #DBEAFE" }}>
+
+        <div
+          style={{ height: 190, position: "relative", overflow: "hidden", backgroundColor: "#DBEAFE", userSelect: "none" }}
+          onMouseDown={startPress} onMouseUp={endPress} onMouseLeave={endPress}
+          onTouchStart={startPress} onTouchEnd={endPress} onTouchCancel={endPress}
+        >
+          {allImages.length > 0
+            ? <img
+                src={allImages[imgIndex]}
+                alt={vendor.business_name}
+                style={{ width: "100%", height: "100%", objectFit: "cover", transition: pressing ? "none" : "opacity 0.2s" }}
+                draggable={false}
+              />
+            : <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg,#1E3A5F,#2563EB)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Home size={44} style={{ color: "rgba(255,255,255,0.3)" }} />
+              </div>}
+
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,transparent 35%,rgba(0,0,0,0.65) 100%)", pointerEvents: "none" }} />
+
+          {pressing && allImages.length > 1 && (
+            <div style={{ position: "absolute", top: 8, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 4, zIndex: 2 }}>
+              {allImages.map((_: any, i: number) => (
+                <div key={i} style={{ width: i === imgIndex ? 16 : 5, height: 5, borderRadius: 999, backgroundColor: i === imgIndex ? "#FFFFFF" : "rgba(255,255,255,0.45)", transition: "width 0.2s" }} />
+              ))}
+            </div>
+          )}
+
+          {!pressing && allImages.length > 1 && (
+            <div style={{ position: "absolute", top: 8, right: 10, backgroundColor: "rgba(0,0,0,0.45)", borderRadius: 999, padding: "2px 8px" }}>
+              <span style={{ fontSize: 9, fontWeight: 700, color: "#FFFFFF" }}>Hold to browse</span>
+            </div>
+          )}
+
+          {venue.is_featured && (
+            <div style={{ position: "absolute", top: 10, left: 10, backgroundColor: "#00C853", borderRadius: 999, padding: "3px 10px" }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "#FFFFFF" }}>Featured</span>
+            </div>
+          )}
+
+          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "0 12px 10px" }}>
+            <p style={{ fontWeight: 900, fontSize: 15, color: "#FFFFFF", margin: "0 0 3px", fontFamily: "var(--font-display,Syne,sans-serif)", textShadow: "0 1px 4px rgba(0,0,0,0.4)", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
+              {vendor.business_name}
+            </p>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              {venue.address && (
+                <div style={{ display: "flex", alignItems: "center", gap: 3, flex: 1, minWidth: 0 }}>
+                  <MapPin size={10} style={{ color: "rgba(255,255,255,0.8)", flexShrink: 0 }} />
+                  <span style={{ fontSize: 10, color: "rgba(255,255,255,0.8)", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{venue.address}</span>
+                </div>
+              )}
+              {rating > 0 && (
+                <div style={{ display: "flex", alignItems: "center", gap: 3, flexShrink: 0, backgroundColor: "rgba(0,0,0,0.45)", borderRadius: 8, padding: "2px 6px" }}>
+                  <Star size={10} style={{ color: "#FFD700", fill: "#FFD700" }} />
+                  <span style={{ fontSize: 10, fontWeight: 700, color: "#FFFFFF" }}>{Number(rating).toFixed(1)}</span>
+                  {reviewCount > 0 && <span style={{ fontSize: 9, color: "rgba(255,255,255,0.7)" }}>({reviewCount})</span>}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ padding: "12px 14px" }}>
+          {topAmenities.length > 0 && (
+            <div style={{ display: "flex", gap: 8, marginBottom: 10, alignItems: "center" }}>
+              {topAmenities.map((a: string) => {
+                const Icon = AMENITY_ICONS[a] || CheckCircle;
+                return (
+                  <div key={a} style={{ display: "flex", alignItems: "center", gap: 4, backgroundColor: ACCENT_BG, borderRadius: 8, padding: "4px 8px" }}>
+                    <Icon size={11} style={{ color: ACCENT, flexShrink: 0 }} />
+                    <span style={{ fontSize: 10, fontWeight: 600, color: ACCENT }}>{a}</span>
+                  </div>
+                );
+              })}
+              {(listings[0]?.amenities || []).length > 3 && (
+                <span style={{ fontSize: 10, color: "#9E9E9E" }}>+{(listings[0]?.amenities || []).length - 3} more</span>
+              )}
+            </div>
+          )}
+
+          {roomTypes.length > 0 && (
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+              {roomTypes.slice(0, 3).map((rt: string) => (
+                <span key={rt} style={{ fontSize: 10, fontWeight: 600, color: "#6B6B6B", backgroundColor: "#F7F5FA", padding: "3px 8px", borderRadius: 999, border: "1px solid #E4DCF0" }}>
+                  {rt}
+                </span>
+              ))}
+              {roomTypes.length > 3 && (
+                <span style={{ fontSize: 10, color: "#9E9E9E" }}>+{roomTypes.length - 3}</span>
+              )}
+            </div>
+          )}
+
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 10, borderTop: "1px solid #F2EEF9" }}>
+            <div>
+              <p style={{ fontSize: 10, color: "#9E9E9E", margin: "0 0 1px" }}>Starting from</p>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                <p style={{ fontSize: 16, fontWeight: 900, color: ACCENT, margin: 0, fontFamily: "var(--font-display,Syne,sans-serif)" }}>
+                  {vendor.starting_price ? formatCurrency(vendor.starting_price) : "See units"}
+                </p>
+                {vendor.starting_price && <span style={{ fontSize: 10, color: "#9E9E9E" }}>/night</span>}
+              </div>
+              {minNights > 1 && (
+                <p style={{ fontSize: 9, color: "#D97706", fontWeight: 700, margin: "2px 0 0" }}>Min {minNights} nights</p>
+              )}
+            </div>
+            <button style={{ backgroundColor: ACCENT, color: "#FFFFFF", border: "none", borderRadius: 12, padding: "9px 18px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              View Units
+            </button>
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function LocationPill({ onCityResolved }: { onCityResolved: (c: string) => void }) {
+  const [display,   setDisplay]   = useState("Lagos");
+  const [detecting, setDetecting] = useState(false);
+  useEffect(() => {
+    setDetecting(true);
+    navigator.geolocation?.getCurrentPosition(async (pos) => {
+      try {
+        const r = await fetch(`/api/places/geocode?lat=${pos.coords.latitude}&lng=${pos.coords.longitude}`);
+        const d = await r.json();
+        const loc = (d.location || "Lagos").split(",")[0].trim();
+        setDisplay(loc); onCityResolved(loc);
+      } catch { setDisplay("Lagos"); onCityResolved("Lagos"); }
+      finally   { setDetecting(false); }
+    }, () => { setDisplay("Lagos"); onCityResolved("Lagos"); setDetecting(false); });
+  }, []);
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
+      <MapPin size={13} style={{ color: ACCENT, flexShrink: 0 }} strokeWidth={2.5} />
+      <span style={{ fontSize: 12, fontWeight: 700, color: "#0A0A0A", maxWidth: 90, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
+        {detecting ? "..." : display}
+      </span>
+      <ChevronDown size={12} style={{ color: "#9E9E9E", flexShrink: 0 }} />
+    </div>
+  );
+}
+
+function Section({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: 28 }}>
+      <div style={{ marginBottom: 14 }}>
+        <h2 style={{ fontSize: 17, fontWeight: 800, color: "#0A0A0A", margin: "0 0 2px", fontFamily: "var(--font-display,Syne,sans-serif)" }}>{title}</h2>
+        <p style={{ fontSize: 11, color: "#9E9E9E", margin: 0 }}>{subtitle}</p>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+export default function ApartmentsPage() {
+  const router = useRouter();
+  const { user } = useAuthStore();
+
+  const [search,     setSearch]     = useState("");
+  const [showSearch, setShowSearch] = useState(false);
+  const [showFilter, setShowFilter] = useState(false);
+  const [showSaved,  setShowSaved]  = useState(false);
+  const [nearMe,     setNearMe]     = useState(false);
+  const [userLat,    setUserLat]    = useState<number | null>(null);
+  const [userLng,    setUserLng]    = useState<number | null>(null);
+  const [userCity,   setUserCity]   = useState("Lagos");
+
+  // Draft filter state (inside the filter sheet before Apply)
+  const [aptTypes,   setAptTypes]   = useState<string[]>([]);
+  const [features,   setFeatures]   = useState<string[]>([]);
+  const [priceTier,  setPriceTier]  = useState<number | null>(null);
+  const [duration,   setDuration]   = useState<string | null>(null);
+
+  // Applied filter state (what actually filters the list)
+  const [aAptTypes,  setAAptTypes]  = useState<string[]>([]);
+  const [aFeatures,  setAFeatures]  = useState<string[]>([]);
+  const [aPriceTier, setAPriceTier] = useState<number | null>(null);
+  const [aDuration,  setADuration]  = useState<string | null>(null);
+
+  const openFilter  = () => {
+    // Sync draft state from applied state when opening
+    setAptTypes(aAptTypes);
+    setFeatures(aFeatures);
+    setPriceTier(aPriceTier);
+    setDuration(aDuration);
+    setShowFilter(true);
+  };
+  const applyFilter = () => {
+    setAAptTypes(aptTypes);
+    setAFeatures(features);
+    setAPriceTier(priceTier);
+    setADuration(duration);
+    setShowFilter(false);
+  };
+  const clearAll = () => {
+    setSearch("");
+    setNearMe(false);
+    setShowSaved(false);
+    setAAptTypes([]);
+    setAFeatures([]);
+    setAPriceTier(null);
+    setADuration(null);
+    // Also reset draft state
+    setAptTypes([]);
+    setFeatures([]);
+    setPriceTier(null);
+    setDuration(null);
+  };
+
+  const { data: vendors, isLoading } = useQuery({
+    queryKey: ["discover-apartments"],
+    queryFn: async () => {
+      const { data: venues } = await (supabase.from("venues") as any)
+        .select("id,name,address,images,rating,review_count,filters,lat,lng,is_featured,created_at,vendor_id")
+        .eq("is_active", true)
+        .eq("category", "apartment")
+        .order("rating", { ascending: false })
+        .limit(60);
+
+      if (!venues?.length) return [];
+
+      const vendorIds = (venues as any[]).filter((v: any) => v.vendor_id).map((v: any) => v.vendor_id);
+      let vendorMap: Record<string, any> = {};
+      if (vendorIds.length) {
+        const { data: vds } = await (supabase.from("vendors") as any)
+          .select("id,business_name,description")
+          .in("id", vendorIds);
+        (vds || []).forEach((v: any) => { vendorMap[v.id] = v; });
+      }
+
+      let listingMap: Record<string, any[]> = {};
+      let priceMap:   Record<string, number> = {};
+      if (vendorIds.length) {
+        const { data: listings } = await (supabase.from("vendor_listings") as any)
+          .select("vendor_id,price_per_unit,amenities,room_type,min_nights,images,unit_label")
+          .in("vendor_id", vendorIds)
+          .eq("is_active", true);
+        (listings || []).forEach((l: any) => {
+          if (!listingMap[l.vendor_id]) listingMap[l.vendor_id] = [];
+          listingMap[l.vendor_id].push(l);
+          if (!priceMap[l.vendor_id] || l.price_per_unit < priceMap[l.vendor_id]) {
+            priceMap[l.vendor_id] = l.price_per_unit;
+          }
+        });
+      }
+
+      return (venues as any[]).map((venue: any) => {
+        const vd = vendorMap[venue.vendor_id] || {};
+        return {
+          id:             vd.id || venue.vendor_id || venue.id,
+          venueId:        venue.id,
+          business_name:  vd.business_name || venue.name,
+          description:    vd.description   || null,
+          starting_price: priceMap[venue.vendor_id] || null,
+          listings:       listingMap[venue.vendor_id] || [],
+          venue,
+        };
+      });
+    },
+    staleTime: 1000 * 60,
+  });
+
+  const { data: savedVenueIds } = useQuery({
+    queryKey: ["saved-venues", user?.id, "apartment"],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data } = await (supabase.from("saved_venues") as any)
+        .select("venue_id").eq("user_id", user.id);
+      return (data || []).map((r: any) => r.venue_id) as string[];
+    },
+    enabled: !!user?.id,
+    staleTime: 1000 * 60,
+  });
+
+  const filtered = (vendors || []).filter((v: any) => {
+    const venue    = v.venue    || {};
+    const listings = v.listings || [];
+
+    // ── Saved filter ──────────────────────────────────────────────
+    if (showSaved && !(savedVenueIds || []).includes(v.venueId)) return false;
+
+    // ── Text search ───────────────────────────────────────────────
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      if (
+        !v.business_name?.toLowerCase().includes(q) &&
+        !venue.address?.toLowerCase().includes(q)
+      ) return false;
+    }
+
+    // ── Near me ───────────────────────────────────────────────────
+    if (nearMe && userLat && userLng) {
+      if (!venue.lat || !venue.lng) return false;
+      if (haversineKm(userLat, userLng, venue.lat, venue.lng) > 20) return false;
+    }
+
+    // ── Duration filter ───────────────────────────────────────────
+    // Matches against the MINIMUM min_nights across all listings for this vendor.
+    // Per Night  (minMin:0, maxMin:1) → min_nights <= 1
+    // Weekly     (minMin:2, maxMin:6) → at least one listing with 2 <= min_nights <= 6
+    // Monthly    (minMin:7, maxMin:999) → at least one listing with min_nights >= 7
+    if (aDuration !== null) {
+      const tier = DURATION_OPTIONS.find(d => d.label === aDuration);
+      if (tier) {
+        const hasMatch = listings.some((l: any) => {
+          const n = l.min_nights || 1;
+          return n >= tier.minMin && n <= tier.maxMin;
+        });
+        // For Per Night: also include vendors with NO listings (min_nights defaults to 1)
+        const perNightFallback =
+          tier.label === "Per Night" && listings.length === 0;
+        if (!hasMatch && !perNightFallback) return false;
+      }
+    }
+
+    // ── Price tier ────────────────────────────────────────────────
+    // Uses starting_price (cheapest listing). Vendors with no price are excluded
+    // from Mid and Premium, but shown in Budget if price is 0/null.
+    if (aPriceTier !== null) {
+      const tier  = PRICE_TIERS[aPriceTier];
+      const price = v.starting_price || 0;
+      if (aPriceTier === 0) {
+        // Budget: under ₦15k — include null/0 prices (contact for rates)
+        if (price > tier.max && price !== 0) return false;
+      } else if (aPriceTier === 1) {
+        // Mid: ₦15k–₦50k — must have a real price in range
+        if (!v.starting_price) return false;
+        if (price <= 15000 || price > tier.max) return false;
+      } else if (aPriceTier === 2) {
+        // Premium: ₦50k+ — must have a real price above threshold
+        if (!v.starting_price) return false;
+        if (price < 50000) return false;
+      }
+    }
+
+    // ── Unit type filter ──────────────────────────────────────────
+    // Match against room_type across ALL listings for this vendor.
+    // A vendor passes if ANY of its listings has a matching room_type.
+    if (aAptTypes.length > 0) {
+      const allRoomTypes = listings
+        .map((l: any) => (l.room_type || "").toLowerCase())
+        .filter(Boolean);
+      const hasMatch = aAptTypes.some(t =>
+        allRoomTypes.some((rt: string) => rt.includes(t.toLowerCase()))
+      );
+      if (!hasMatch) return false;
+    }
+
+    // ── Features / amenities filter ───────────────────────────────
+    // Collect ALL amenities across ALL listings + venue filters.
+    // A vendor passes if ANY selected feature exists anywhere in their amenities.
+    if (aFeatures.length > 0) {
+      const allAmenities = [
+        ...(venue.filters || []),
+        ...listings.flatMap((l: any) => l.amenities || []),
+      ].map((a: string) => a.toLowerCase());
+      const hasMatch = aFeatures.some(f =>
+        allAmenities.includes(f.toLowerCase())
+      );
+      if (!hasMatch) return false;
+    }
+
+    return true;
+  });
+
+  const featured = filtered.filter((v: any) =>  v.venue?.is_featured);
+  const topRated = filtered.filter((v: any) => !v.venue?.is_featured && (v.venue?.rating || 0) >= 4).slice(0, 8);
+  const nearby   = userLat && userLng
+    ? filtered
+        .filter((v: any) => v.venue?.lat && v.venue?.lng)
+        .map((v: any) => ({ ...v, _d: haversineKm(userLat, userLng, v.venue.lat, v.venue.lng) }))
+        .sort((a: any, b: any) => a._d - b._d).slice(0, 6)
+    : [];
+  const newAdded = [...filtered]
+    .sort((a: any, b: any) =>
+      new Date(b.venue?.created_at || 0).getTime() - new Date(a.venue?.created_at || 0).getTime()
+    )
+    .slice(0, 6);
+
+  const filterActive = aAptTypes.length > 0 || aFeatures.length > 0 || aPriceTier !== null || aDuration !== null;
+  const anyActive    = search.trim() !== "" || nearMe || showSaved || filterActive;
+
+  const pill = (active: boolean, color = ACCENT, bg = ACCENT_BG): React.CSSProperties => ({
+    display: "flex", alignItems: "center", gap: 5, padding: "7px 13px",
+    borderRadius: 999, border: "1.5px solid",
+    borderColor: active ? color : "#E4DCF0",
+    backgroundColor: active ? bg : "#F7F5FA",
+    cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" as const,
+    fontSize: 12, fontWeight: active ? 700 : 600,
+    color: active ? color : "#6B6B6B",
+  });
+
+  const renderCard = (v: any, i: number) => (
+    <motion.div key={v.id || v.venueId} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+      <AptCard vendor={v} />
+    </motion.div>
+  );
+
+  return (
+    <MainLayout>
+      <div style={{ backgroundColor: "#FFFFFF", position: "sticky", top: 0, zIndex: 40, borderBottom: showFilter ? "none" : "1px solid #DBEAFE", boxShadow: "0 1px 8px rgba(0,0,0,0.04)" }}>
+
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 16px 8px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button onClick={() => router.back()} style={{ background: "none", border: "none", cursor: "pointer", padding: 6, marginLeft: -6, display: "flex" }}>
+              <ArrowLeft size={22} style={{ color: "#0A0A0A" }} />
+            </button>
+            <div>
+              <h1 style={{ fontSize: 20, fontWeight: 900, color: "#0A0A0A", margin: 0, fontFamily: "var(--font-display,Syne,sans-serif)" }}>
+                🏠 Apartments & Shortlets
+              </h1>
+              <p style={{ fontSize: 11, color: "#9E9E9E", margin: 0 }}>
+                {isLoading ? "Loading..." : `${filtered.length} apartment${filtered.length !== 1 ? "s" : ""} found`}
+              </p>
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {anyActive && (
+              <button onClick={clearAll} style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "1px solid #FECACA", borderRadius: 999, padding: "4px 10px", cursor: "pointer" }}>
+                <X size={10} style={{ color: "#EF4444" }} /><span style={{ fontSize: 11, fontWeight: 700, color: "#EF4444" }}>Clear</span>
+              </button>
+            )}
+            <LocationPill onCityResolved={(c) => {
+              setUserCity(c);
+              navigator.geolocation?.getCurrentPosition(
+                (pos) => { setUserLat(pos.coords.latitude); setUserLng(pos.coords.longitude); },
+                () => {}
+              );
+            }} />
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 8, padding: "0 16px 12px", overflowX: "auto", scrollbarWidth: "none" }}>
+          <button onClick={openFilter} style={pill(filterActive || showFilter)}>
+            <SlidersHorizontal size={13} />Filter
+            {filterActive && <div style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: ACCENT }} />}
+          </button>
+          <button onClick={() => setShowSaved(!showSaved)} style={pill(showSaved, "#FF4B6E", "#FFF0F3")}>
+            <Heart size={13} style={{ fill: showSaved ? "#FF4B6E" : "none" }} />Saved
+          </button>
+          <button onClick={() => {
+            setNearMe(!nearMe);
+            if (!nearMe) navigator.geolocation?.getCurrentPosition(
+              (pos) => { setUserLat(pos.coords.latitude); setUserLng(pos.coords.longitude); }, () => {}
+            );
+          }} style={pill(nearMe)}>
+            <MapPin size={13} />Near Me
+          </button>
+          <button onClick={() => setShowSearch(!showSearch)} style={pill(showSearch || !!search)}>
+            <Search size={13} />Search
+          </button>
+        </div>
+
+        <AnimatePresence>
+          {showSearch && (
+            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} style={{ overflow: "hidden" }}>
+              <div style={{ padding: "0 16px 12px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, backgroundColor: "#F7F5FA", border: `1.5px solid ${ACCENT}`, borderRadius: 14, padding: "11px 14px" }}>
+                  <Search size={15} style={{ color: ACCENT }} />
+                  <input autoFocus type="text" placeholder="Search apartments, shortlets..."
+                    value={search} onChange={e => setSearch(e.target.value)}
+                    style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 14, color: "#0A0A0A", fontFamily: "inherit" }} />
+                  {search && <button onClick={() => setSearch("")} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={14} style={{ color: "#9E9E9E" }} /></button>}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {showFilter && (
+            <>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={applyFilter}
+                style={{ position: "fixed", inset: 0, zIndex: 38, backgroundColor: "rgba(0,0,0,0.25)" }} />
+              <motion.div initial={{ y: -12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -12, opacity: 0 }}
+                transition={{ type: "spring", damping: 30, stiffness: 350 }}
+                style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 39, backgroundColor: "#FFFFFF", borderRadius: "0 0 24px 24px", boxShadow: "0 12px 40px rgba(0,0,0,0.12)", maxHeight: "72vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                <div style={{ flex: 1, overflowY: "auto", padding: "20px 20px 0" }}>
+
+                  {/* Price Range */}
+                  <div style={{ marginBottom: 24 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                      <p style={{ fontSize: 13, fontWeight: 800, color: "#0A0A0A", margin: 0 }}>Price Range</p>
+                      {priceTier !== null && (
+                        <button onClick={() => setPriceTier(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, color: "#EF4444" }}>Clear</button>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", gap: 10 }}>
+                      {PRICE_TIERS.map((pt, idx) => (
+                        <button key={pt.label} onClick={() => setPriceTier(priceTier === idx ? null : idx)}
+                          style={{ flex: 1, padding: "12px 8px", borderRadius: 16, border: "2px solid", borderColor: priceTier === idx ? ACCENT : "#E4DCF0", backgroundColor: priceTier === idx ? ACCENT_BG : "#FFFFFF", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                          <span style={{ fontSize: 20 }}>{pt.icon}</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: priceTier === idx ? ACCENT : "#0A0A0A" }}>{pt.label}</span>
+                          <span style={{ fontSize: 10, color: "#9E9E9E" }}>{pt.sub}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Stay Duration */}
+                  <div style={{ marginBottom: 24 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                      <p style={{ fontSize: 13, fontWeight: 800, color: "#0A0A0A", margin: 0 }}>Stay Duration</p>
+                      {duration !== null && (
+                        <button onClick={() => setDuration(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, color: "#EF4444" }}>Clear</button>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      {DURATION_OPTIONS.map(d => (
+                        <button key={d.label} onClick={() => setDuration(duration === d.label ? null : d.label)}
+                          style={{ flex: 1, padding: "10px 0", borderRadius: 12, border: "2px solid", borderColor: duration === d.label ? ACCENT : "#E4DCF0", backgroundColor: duration === d.label ? ACCENT_BG : "#FFFFFF", color: duration === d.label ? ACCENT : "#6B6B6B", fontSize: 12, fontWeight: duration === d.label ? 700 : 500, cursor: "pointer" }}>
+                          {d.label}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Helper text so vendor understands what each means */}
+                    <div style={{ marginTop: 8, display: "flex", gap: 6 }}>
+                      {DURATION_OPTIONS.map(d => (
+                        <p key={d.label} style={{ flex: 1, fontSize: 9, color: "#9E9E9E", margin: 0, textAlign: "center" }}>
+                          {d.label === "Per Night" ? "Min 1 night"
+                            : d.label === "Weekly" ? "Min 2–6 nights"
+                            : "Min 7+ nights"}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Unit Type */}
+                  <div style={{ marginBottom: 24 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                      <p style={{ fontSize: 13, fontWeight: 800, color: "#0A0A0A", margin: 0 }}>Unit Type</p>
+                      {aptTypes.length > 0 && (
+                        <button onClick={() => setAptTypes([])} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, color: "#EF4444" }}>Clear</button>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      {APT_TYPES.map(t => {
+                        const on = aptTypes.includes(t);
+                        return (
+                          <button key={t} onClick={() => setAptTypes(on ? aptTypes.filter(x => x !== t) : [...aptTypes, t])}
+                            style={{ padding: "8px 14px", borderRadius: 999, border: "1.5px solid", borderColor: on ? ACCENT : "#E4DCF0", backgroundColor: on ? ACCENT_BG : "#FFFFFF", color: on ? ACCENT : "#6B6B6B", fontSize: 12, fontWeight: on ? 700 : 500, cursor: "pointer" }}>
+                            {t}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Features */}
+                  <div style={{ marginBottom: 24 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                      <p style={{ fontSize: 13, fontWeight: 800, color: "#0A0A0A", margin: 0 }}>Features & Amenities</p>
+                      {features.length > 0 && (
+                        <button onClick={() => setFeatures([])} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, color: "#EF4444" }}>Clear</button>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      {FEATURES.map(f => {
+                        const on = features.includes(f);
+                        return (
+                          <button key={f} onClick={() => setFeatures(on ? features.filter(x => x !== f) : [...features, f])}
+                            style={{ padding: "8px 14px", borderRadius: 999, border: "1.5px solid", borderColor: on ? ACCENT : "#E4DCF0", backgroundColor: on ? ACCENT_BG : "#FFFFFF", color: on ? ACCENT : "#6B6B6B", fontSize: 12, fontWeight: on ? 700 : 500, cursor: "pointer" }}>
+                            {f}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ padding: "12px 20px 24px", borderTop: "1px solid #F2EEF9", flexShrink: 0 }}>
+                  <button onClick={applyFilter}
+                    style={{ width: "100%", padding: "14px 0", borderRadius: 14, border: "none", backgroundColor: "#0A0A0A", color: "#FFFFFF", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+                    Apply Filters
+                    {(aptTypes.length + features.length + (priceTier !== null ? 1 : 0) + (duration !== null ? 1 : 0)) > 0
+                      ? ` (${aptTypes.length + features.length + (priceTier !== null ? 1 : 0) + (duration !== null ? 1 : 0)})`
+                      : ""}
+                  </button>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+      </div>
+
+      <div style={{ padding: "16px" }}>
+        {isLoading ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} style={{ height: 280, borderRadius: 20, backgroundColor: "#F2EEF9" }} />
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div style={{ textAlign: "center", paddingTop: 80 }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>{showSaved ? "❤️" : "🏠"}</div>
+            <p style={{ fontWeight: 800, fontSize: 16, color: "#0A0A0A", margin: "0 0 6px" }}>
+              {showSaved ? "No saved apartments yet" : "No apartments found"}
+            </p>
+            <p style={{ fontSize: 13, color: "#9E9E9E", margin: "0 0 20px" }}>
+              {showSaved ? "Tap the heart on any listing to save it" : "Try adjusting your filters"}
+            </p>
+            <button onClick={clearAll}
+              style={{ padding: "10px 28px", borderRadius: 12, border: "none", backgroundColor: ACCENT, color: "#FFFFFF", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+              Clear filters
+            </button>
+          </div>
+        ) : showSaved ? (
+          <Section title="❤️ Your Saved" subtitle="Apartments you've saved">
+            {filtered.map(renderCard)}
+          </Section>
+        ) : anyActive ? (
+          <Section title={`${filtered.length} result${filtered.length !== 1 ? "s" : ""}`} subtitle="Matching your filters">
+            {filtered.map(renderCard)}
+          </Section>
+        ) : (
+          <>
+            {featured.length > 0 && <Section title="✨ Featured" subtitle="Hand-picked stays">{featured.map(renderCard)}</Section>}
+            {topRated.length > 0 && <Section title={`⭐ Top Rated in ${userCity}`} subtitle="Highly rated by guests">{topRated.map(renderCard)}</Section>}
+            {nearby.length   > 0 && <Section title="📍 Near You" subtitle="Closest apartments">{nearby.map(renderCard)}</Section>}
+            {newAdded.length  > 0 && <Section title="🆕 New Listings" subtitle="Recently added">{newAdded.map(renderCard)}</Section>}
+          </>
+        )}
+      </div>
+    </MainLayout>
+  );
+}
