@@ -122,12 +122,27 @@ export default function SupportPage() {
     queryKey: ["support-recent", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      const { data } = await (supabase.from("bookings") as any)
+      const { data: bookingsData } = await (supabase.from("bookings") as any)
         .select("*, venues(name, images)")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(10);
-      return (data || []) as any[];
+      const bookings = (bookingsData || []) as any[];
+
+      // Enrich event bookings separately
+      const eventIds = bookings.filter((b: any) => b.event_id).map((b: any) => b.event_id);
+      let eventsMap: Record<string, any> = {};
+      if (eventIds.length > 0) {
+        const { data: eventsData } = await (supabase.from("events") as any)
+          .select("id, title, images, vendor_id, vendors(business_name)")
+          .in("id", eventIds);
+        eventsMap = Object.fromEntries((eventsData || []).map((e: any) => [e.id, e]));
+      }
+
+      return bookings.map((b: any) => ({
+        ...b,
+        events: b.event_id ? eventsMap[b.event_id] || null : null,
+      }));
     },
     enabled: !!user?.id,
     staleTime: 1000 * 60,
@@ -137,13 +152,29 @@ export default function SupportPage() {
     queryKey: ["disputed-bookings", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      const { data } = await (supabase.from("bookings") as any)
+      const { data: bookingsData } = await (supabase.from("bookings") as any)
         .select("*, venues(name, images)")
         .eq("user_id", user.id)
-        .eq("status", "disputed")
         .order("created_at", { ascending: false })
-        .limit(5);
-      return (data || []) as any[];
+        .limit(10);
+      const bookings = (bookingsData || []) as any[];
+      const eventIds = [...new Set(bookings.filter((b: any) => b.event_id).map((b: any) => b.event_id))];
+      let eventsMap: Record<string, any> = {};
+      if (eventIds.length > 0) {
+        const { data: eventsData } = await (supabase.from("events") as any)
+          .select("id, title, images, vendor_id")
+          .in("id", eventIds);
+        const vendorIds = [...new Set((eventsData || []).map((e: any) => e.vendor_id).filter(Boolean))];
+        let vendorsMap: Record<string, any> = {};
+        if (vendorIds.length > 0) {
+          const { data: vendorsData } = await (supabase.from("vendors") as any)
+            .select("id, business_name")
+            .in("id", vendorIds);
+          vendorsMap = Object.fromEntries((vendorsData || []).map((v: any) => [v.id, v]));
+        }
+        eventsMap = Object.fromEntries((eventsData || []).map((e: any) => [e.id, { ...e, vendors: vendorsMap[e.vendor_id] || null }]));
+      }
+      return bookings.map((b: any) => ({ ...b, events: b.event_id ? eventsMap[b.event_id] || null : null }));
     },
     enabled: !!user?.id,
     staleTime: 0,
@@ -313,7 +344,7 @@ export default function SupportPage() {
   const isImageUrl = (url: string) => /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
   const activeTicket = (myTickets || []).find((t: any) => t.id === activeTicketId);
   const unreadCount = (myTickets || []).filter((t: any) => !t.user_read).length;
-  const displayedBookings = (recentBookings || []).slice(0, 5);
+  const displayedBookings = (recentBookings || []).slice(0, 8);
 
   return (
     <MainLayout>
@@ -436,7 +467,7 @@ export default function SupportPage() {
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontWeight: 700, fontSize: 14, color: "#92400E", margin: "0 0 3px", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
-                        {booking.venues?.name || "Booking"} — Disputed
+                        {booking.venues?.name || booking.events?.title || "Booking"} — Disputed
                       </p>
                       <p style={{ fontSize: 12, color: "#D97706", margin: 0 }}>Tap to open dispute thread</p>
                     </div>
@@ -488,19 +519,19 @@ export default function SupportPage() {
                           border: "none", cursor: "pointer", textAlign: "left",
                           boxShadow: "0 2px 12px rgba(91,14,166,0.08)",
                         }}>
-                        {/* Venue image */}
+                        {/* Venue / Event image */}
                         <div style={{ width: 58, height: 58, borderRadius: 14, overflow: "hidden", flexShrink: 0, backgroundColor: "#EDE0F7" }}>
-                          {booking.venues?.images?.[0]
-                            ? <img src={booking.venues.images[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          {(booking.venues?.images?.[0] || booking.events?.images?.[0])
+                            ? <img src={booking.venues?.images?.[0] || booking.events?.images?.[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                             : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                <Building2 size={22} style={{ color: "#C4BAD8" }} />
+                                {booking.events ? <Calendar size={22} style={{ color: "#C4BAD8" }} /> : <Building2 size={22} style={{ color: "#C4BAD8" }} />}
                               </div>}
                         </div>
 
                         {/* Text */}
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <p style={{ fontWeight: 700, fontSize: 15, color: "#0D0D0D", margin: "0 0 5px", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
-                            {booking.venues?.name || "Unknown Venue"}
+                            {booking.venues?.name || booking.events?.title || booking.events?.vendors?.business_name || "Unknown Venue"}
                           </p>
                           <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
                             <span style={{ fontSize: 13, fontWeight: 800, color: "#5B0EA6" }}>
@@ -819,7 +850,7 @@ export default function SupportPage() {
                     </h3>
                     {selectedBooking && (
                       <p style={{ fontSize: 12, color: "#9E9E9E", margin: 0 }}>
-                        Re: {selectedBooking.venues?.name} · {formatCurrency(selectedBooking.reserved_amount)}
+                        Re: {selectedBooking.venues?.name || selectedBooking.events?.title || "Booking"} · {formatCurrency(selectedBooking.reserved_amount)}
                       </p>
                     )}
                   </div>
@@ -844,15 +875,38 @@ export default function SupportPage() {
                       <p style={{ fontSize: 12, fontWeight: 700, color: "#6B6B6B", margin: "0 0 8px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Report To</p>
                       <div style={{ display: "flex", gap: 10 }}>
                         {(selectedBooking ? [
-                          { value: "vendor" as const, label: "The Venue", icon: Building2, desc: "Issue with service at the venue" },
-                          { value: "chillz" as const, label: "Chillz", icon: HelpCircle, desc: "App, payment, or platform issue" },
+                          {
+                            value: "vendor" as const,
+                            label: selectedBooking.venues?.name || selectedBooking.events?.vendors?.business_name || selectedBooking.events?.title || "The Business",
+                            icon: Building2,
+                            desc: selectedBooking.events ? "Issue with this event or organizer" : "Issue with service at the venue",
+                            color: "#E07B00",
+                            bg: "#FFF3E0",
+                          },
+                          {
+                            value: "chillz" as const,
+                            label: "Chillz Support",
+                            icon: HelpCircle,
+                            desc: "App, payment, or platform issue",
+                            color: "#5B0EA6",
+                            bg: "#EDE0F7",
+                          },
                         ] : [
-                          { value: "chillz" as const, label: "Chillz Support", icon: HelpCircle, desc: "General enquiry or feedback" },
-                        ]).map(({ value, label, icon: Icon, desc }) => (
+                          {
+                            value: "chillz" as const,
+                            label: "Chillz Support",
+                            icon: HelpCircle,
+                            desc: "General enquiry or feedback",
+                            color: "#5B0EA6",
+                            bg: "#EDE0F7",
+                          },
+                        ]).map(({ value, label, icon: Icon, desc, color, bg }) => (
                           <button key={value} onClick={() => setReportType(value)}
-                            style={{ flex: 1, padding: "12px 10px", borderRadius: 14, border: "2px solid", borderColor: reportType === value ? "#5B0EA6" : "#E4DCF0", backgroundColor: reportType === value ? "#F9F5FF" : "#FFFFFF", cursor: "pointer", textAlign: "center" }}>
-                            <Icon size={20} style={{ color: reportType === value ? "#5B0EA6" : "#9E9E9E", marginBottom: 6 }} />
-                            <p style={{ fontWeight: 700, fontSize: 12, color: reportType === value ? "#5B0EA6" : "#0A0A0A", margin: "0 0 2px" }}>{label}</p>
+                            style={{ flex: 1, padding: "14px 10px", borderRadius: 16, border: "2px solid", borderColor: reportType === value ? color : "#E4DCF0", backgroundColor: reportType === value ? bg : "#FFFFFF", cursor: "pointer", textAlign: "center", transition: "all 0.15s" }}>
+                            <div style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: reportType === value ? "rgba(255,255,255,0.6)" : "#F7F5FA", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 8px" }}>
+                              <Icon size={20} style={{ color: reportType === value ? color : "#9E9E9E" }} />
+                            </div>
+                            <p style={{ fontWeight: 800, fontSize: 12, color: reportType === value ? color : "#0A0A0A", margin: "0 0 3px", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{label}</p>
                             <p style={{ fontSize: 10, color: "#9E9E9E", margin: 0, lineHeight: 1.4 }}>{desc}</p>
                           </button>
                         ))}
