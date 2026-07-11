@@ -134,15 +134,17 @@ export default function SupportPage() {
       let eventsMap: Record<string, any> = {};
       if (eventIds.length > 0) {
         const { data: eventsData } = await (supabase.from("events") as any)
-          .select("id, title, images, vendor_id, vendors(business_name)")
+          .select("id, title, images, vendor_id")
           .in("id", eventIds);
         eventsMap = Object.fromEntries((eventsData || []).map((e: any) => [e.id, e]));
       }
-
+      console.log("EVENTS MAP:", eventsMap);
+      console.log("BOOKINGS:", bookings.map((b: any) => ({ id: b.id, event_id: b.event_id, venue: b.venues?.name })));
       return bookings.map((b: any) => ({
         ...b,
         events: b.event_id ? eventsMap[b.event_id] || null : null,
       }));
+      
     },
     enabled: !!user?.id,
     staleTime: 1000 * 60,
