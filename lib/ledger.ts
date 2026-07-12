@@ -1,4 +1,10 @@
 import { supabase } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 // ─── WALLET FUNDING ───────────────────────────────────────────────────────────
 export async function fundUserWallet(
@@ -7,7 +13,7 @@ export async function fundUserWallet(
   reference: string
 ) {
   const txId = crypto.randomUUID();
-  await (supabase.from("ledger_entries") as any).insert([
+  await (supabaseAdmin.from("ledger_entries") as any).insert([
     {
       transaction_id: txId,
       account_type: "PAYSTACK_INFLOW",
