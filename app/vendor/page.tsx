@@ -447,6 +447,20 @@ export default function VendorDashboard() {
     if (!vendor?.user_id) return;
     bellAudioRef.current = new Audio("/sounds/bell.mp3");
     bellAudioRef.current.volume = 1.0;
+
+    // Unlock audio on first user gesture — browsers block autoplay
+    // until the audio element has been interacted with on this page
+    const unlock = () => {
+      if (!bellAudioRef.current) return;
+      bellAudioRef.current.play().then(() => {
+        bellAudioRef.current!.pause();
+        bellAudioRef.current!.currentTime = 0;
+      }).catch(() => {});
+      window.removeEventListener("click", unlock);
+      window.removeEventListener("touchstart", unlock);
+    };
+    window.addEventListener("click", unlock);
+    window.addEventListener("touchstart", unlock);
     const channel = supabase
       .channel(`waiter-calls-${vendor.user_id}`)
       .on("postgres_changes", {

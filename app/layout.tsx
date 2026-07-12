@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
+import { CookieConsent } from "@/components/ui/cookie-consent";
 import { SplashScreen } from "@/components/layout/splash-screen";
 
 export const metadata: Metadata = {
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <SplashScreen />
           {children}
         </Providers>
+      <CookieConsent />
       </body>
     </html>
   );

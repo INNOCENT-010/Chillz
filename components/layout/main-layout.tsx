@@ -1,4 +1,5 @@
 "use client";
+import { NotificationToast } from "@/components/ui/notification-toast";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 
@@ -163,6 +164,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           );
         })}
       </nav>
+      <NotificationToast />
     </div>
   );
 }

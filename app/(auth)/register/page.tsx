@@ -23,6 +23,8 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [policyAccepted, setPolicyAccepted] = useState(false);
+  const [policyError, setPolicyError] = useState(false);
 
   // User form
   const [userForm, setUserForm] = useState({ full_name: "", email: "", password: "" });
@@ -51,6 +53,7 @@ export default function RegisterPage() {
   // ── User registration ─────────────────────────────────────────────────
   const handleUserRegister = async () => {
     setError("");
+    if (!policyAccepted) { setPolicyError(true); return; }
     if (!userForm.full_name.trim()) { setError("Enter your full name"); return; }
     if (!userForm.email.trim()) { setError("Enter your email"); return; }
     if (userForm.password.length < 6) { setError("Password must be at least 6 characters"); return; }
@@ -98,6 +101,7 @@ export default function RegisterPage() {
   // ── Vendor registration ───────────────────────────────────────────────
   const handleVendorRegister = async () => {
     setError("");
+    if (!policyAccepted) { setPolicyError(true); return; }
     if (!selectedVenue) { setError("Please select your venue"); return; }
     if (!vendorForm.business_name.trim()) { setError("Enter your business name"); return; }
     if (!vendorForm.vendor_type) { setError("Select your business type"); return; }
@@ -250,6 +254,32 @@ export default function RegisterPage() {
                   </button>
                 </div>
               </div>
+
+              {/* Policy agreement */}
+              <button
+                onClick={() => { setPolicyAccepted(!policyAccepted); setPolicyError(false); }}
+                style={{ display: "flex", alignItems: "flex-start", gap: 12, background: "none", border: "none", cursor: "pointer", padding: 0, textAlign: "left" }}>
+                <div style={{ width: 22, height: 22, borderRadius: 7, border: `2px solid ${policyError ? "#EF4444" : policyAccepted ? "#5B0EA6" : "#E4DCF0"}`, backgroundColor: policyAccepted ? "#5B0EA6" : "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1, transition: "all 0.15s" }}>
+                  {policyAccepted && (
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                      <path d="M2 6L5 9L10 3" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </div>
+                <p style={{ fontSize: 13, color: "#6B6B6B", margin: 0, lineHeight: 1.6 }}>
+                  I have read and agree to the Chillz{" "}
+                  <a href="/terms" onClick={(e) => e.stopPropagation()} style={{ color: "#5B0EA6", fontWeight: 700, textDecoration: "none" }}>Terms of Service</a>
+                  {" "}and{" "}
+                  <a href="/privacy" onClick={(e) => e.stopPropagation()} style={{ color: "#5B0EA6", fontWeight: 700, textDecoration: "none" }}>Privacy Policy</a>.
+                  By creating an account I consent to the use of cookies and data processing as described therein.
+                </p>
+              </button>
+
+              {policyError && (
+                <p style={{ fontSize: 12, color: "#EF4444", margin: 0, fontWeight: 600 }}>
+                  Please accept the terms to continue
+                </p>
+              )}
 
               {error && (
                 <div style={{ backgroundColor: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 12, padding: "10px 14px" }}>
@@ -446,6 +476,32 @@ export default function RegisterPage() {
                   Your venue will be reviewed by the Chillz team. Once approved it goes live immediately for users to discover.
                 </p>
               </div>
+
+              {/* Policy agreement */}
+              <button
+                onClick={() => { setPolicyAccepted(!policyAccepted); setPolicyError(false); }}
+                style={{ display: "flex", alignItems: "flex-start", gap: 12, background: "none", border: "none", cursor: "pointer", padding: 0, textAlign: "left" }}>
+                <div style={{ width: 22, height: 22, borderRadius: 7, border: `2px solid ${policyError ? "#EF4444" : policyAccepted ? "#5B0EA6" : "#E4DCF0"}`, backgroundColor: policyAccepted ? "#5B0EA6" : "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1, transition: "all 0.15s" }}>
+                  {policyAccepted && (
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                      <path d="M2 6L5 9L10 3" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </div>
+                <p style={{ fontSize: 13, color: "#6B6B6B", margin: 0, lineHeight: 1.6 }}>
+                  I have read and agree to the Chillz{" "}
+                  <a href="/terms" onClick={(e) => e.stopPropagation()} style={{ color: "#5B0EA6", fontWeight: 700, textDecoration: "none" }}>Terms of Service</a>
+                  {" "}and{" "}
+                  <a href="/privacy" onClick={(e) => e.stopPropagation()} style={{ color: "#5B0EA6", fontWeight: 700, textDecoration: "none" }}>Privacy Policy</a>.
+                  By registering as a vendor I consent to data processing and platform terms.
+                </p>
+              </button>
+
+              {policyError && (
+                <p style={{ fontSize: 12, color: "#EF4444", margin: 0, fontWeight: 600 }}>
+                  Please accept the terms to continue
+                </p>
+              )}
 
               {error && (
                 <div style={{ backgroundColor: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 12, padding: "10px 14px" }}>

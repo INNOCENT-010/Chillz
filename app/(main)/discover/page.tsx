@@ -416,6 +416,15 @@ export default function DiscoverPage() {
         if (result?.hyped) next.add(postId); else next.delete(postId);
         return next;
       });
+      // Optimistically update the count in the cache without waiting for refetch
+      qc.setQueryData(["discover-posts"], (old: any) => {
+        if (!old) return old;
+        return old.map((p: any) =>
+          p.id === postId
+            ? { ...p, hype_count: result?.new_hype_count ?? p.hype_count }
+            : p
+        );
+      });
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["discover-posts"] }); },
   });

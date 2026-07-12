@@ -30,9 +30,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${origin}/login?error=auth_failed`);
   }
 
-  // Redirect vendor to vendor dashboard, users to home
+  // Recovery flow — send straight to reset password page
+  if (next === "/reset-password") {
+    return NextResponse.redirect(`${origin}/reset-password`);
+  }
+
   const accountType = data.user.user_metadata?.account_type;
-  const redirectTo = accountType === "vendor" ? "/vendor" : next;
+  const redirectTo = accountType === "vendor" ? "/vendor" : next === "/" ? "/home" : next;
 
   return NextResponse.redirect(`${origin}${redirectTo}`);
 }
