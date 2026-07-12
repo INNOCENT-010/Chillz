@@ -20,11 +20,15 @@ export async function POST(req: NextRequest) {
     }
 
     const amount = verifyData.data.amount / 100;
+    console.log("WALLET FUND ATTEMPT:", { user_id, amount, reference });
+    console.log("PAYSTACK VERIFY RESPONSE:", verifyData.data?.status, verifyData.data?.metadata);
     await fundUserWallet(user_id, amount, reference);
+    console.log("WALLET FUND SUCCESS:", { user_id, amount });
 
     return NextResponse.json({ success: true, amount });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Unknown error";
+    console.error("WALLET FUND ERROR:", msg);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
