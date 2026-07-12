@@ -101,8 +101,9 @@ export default function BookingReceiptPage() {
   const confirmMutation = useMutation({
     mutationFn: async () => {
       if (!booking || !receipt) throw new Error("No receipt to confirm");
+      if (!user?.id) throw new Error("You must be logged in to confirm payment");
 
-      const userId      = user!.id;
+      const userId      = user.id;
       const billAmount  = receipt.total || booking.reserved_amount;
       const reserved    = booking.reserved_amount;
       const platformFee = Math.round(billAmount * 0.05);
@@ -236,7 +237,7 @@ export default function BookingReceiptPage() {
 
         await (supabase.from("dispute_messages") as any).insert({
           booking_id:  id,
-          sender_id:   user!.id,
+          sender_id:   user?.id || null,
           sender_role: "user",
           message:     reason,
           attachments: [],
@@ -566,8 +567,11 @@ export default function BookingReceiptPage() {
 
               {/* Confirm button */}
               <button
-                onClick={() => confirmMutation.mutate()}
-                disabled={confirmMutation.isPending || !canConfirm || needsTopUp}
+                onClick={() => {
+                  if (!user?.id) { router.push(`/login?redirect=/bookings/${id}/receipt`); return; }
+                  confirmMutation.mutate();
+                }}
+                disabled={confirmMutation.isPending || !canConfirm || needsTopUp || !user?.id}
                 style={{ width: "100%", padding: "15px 0", borderRadius: 16, border: "none", background: confirmMutation.isPending || !canConfirm || needsTopUp ? "#9E9E9E" : `linear-gradient(135deg,#3B0764,${ACCENT})`, color: "#FFFFFF", fontSize: 15, fontWeight: 700, cursor: confirmMutation.isPending || !canConfirm || needsTopUp ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: canConfirm && !needsTopUp ? "0 4px 20px rgba(91,14,166,0.35)" : "none" }}>
                 {confirmMutation.isPending
                   ? <><div style={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#FFFFFF", animation: "spin 0.8s linear infinite" }} />Confirming...</>
