@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/store/auth";
@@ -156,10 +156,16 @@ export function NotificationToast() {
   const router = useRouter();
   const [toasts, setToasts] = useState<Toast[]>([]);
   const dismissTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const addToast = (toast: Toast) => {
+  const dismissToast = useCallback((id: string) => {
+    clearTimeout(dismissTimers.current[id]);
+    delete dismissTimers.current[id];
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  const addToast = useCallback((toast: Toast) => {
     setToasts((prev) => {
-      // Show latest, dismiss previous — max 1 visible at a time
       const existing = prev[0];
       if (existing) {
         clearTimeout(dismissTimers.current[existing.id]);
@@ -167,21 +173,28 @@ export function NotificationToast() {
       }
       return [toast];
     });
-
     dismissTimers.current[toast.id] = setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== toast.id));
-      delete dismissTimers.current[toast.id];
+      dismissToast(toast.id);
     }, 6000);
-  };
-
-  const dismissToast = (id: string) => {
-    clearTimeout(dismissTimers.current[id]);
-    delete dismissTimers.current[id];
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  };
+  }, [dismissToast]);
 
   useEffect(() => {
     if (!user?.id) return;
+
+    audioRef.current = new Audio("/sounds/user-bell.mp3");
+    audioRef.current.volume = 0.6;
+
+    const unlock = () => {
+      if (!audioRef.current) return;
+      audioRef.current.play().then(() => {
+        audioRef.current!.pause();
+        audioRef.current!.currentTime = 0;
+      }).catch(() => {});
+      window.removeEventListener("click", unlock);
+      window.removeEventListener("touchstart", unlock);
+    };
+    window.addEventListener("click", unlock);
+    window.addEventListener("touchstart", unlock);
 
     const channel = supabase
       .channel(`user-notifications-toast-${user.id}`)
@@ -194,6 +207,10 @@ export function NotificationToast() {
         const n = payload.new;
         // Skip waiter_call on customer side — that's vendor only
         if (n.type === "waiter_call") return;
+        if (audioRef.current) {
+          audioRef.current.currentTime = 0;
+          audioRef.current.play().catch(() => {});
+        }
         addToast({
           id: n.id,
           type: n.type,

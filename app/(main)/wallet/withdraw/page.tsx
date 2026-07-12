@@ -37,7 +37,7 @@ export default function UserWithdrawPage() {
   const { user } = useAuthStore();
   const qc = useQueryClient();
 
-  const [step, setStep] = useState<"main" | "link" | "otp" | "confirm" | "done">("main");
+  const [step, setStep] = useState<"main" | "link" | "link_otp" | "otp" | "confirm" | "done">("main");
   const [amount, setAmount] = useState("");
 
   // Link bank state
@@ -49,11 +49,16 @@ export default function UserWithdrawPage() {
   const [linkError, setLinkError] = useState("");
   const [linkLoading, setLinkLoading] = useState(false);
 
-  // OTP state
+  // OTP state (withdrawal)
   const [otpValue, setOtpValue] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpError, setOtpError] = useState("");
   const [otpVerified, setOtpVerified] = useState(false);
+
+  // OTP state (bank link)
+  const [linkOtpValue, setLinkOtpValue] = useState("");
+  const [linkOtpLoading, setLinkOtpLoading] = useState(false);
+  const [linkOtpError, setLinkOtpError] = useState("");
 
   // Withdraw state
   const [withdrawError, setWithdrawError] = useState("");
@@ -239,7 +244,9 @@ export default function UserWithdrawPage() {
       <div style={{ background: "linear-gradient(135deg, #5B0EA6, #7B2FBE)", padding: "44px 20px 28px" }}>
         <button
           onClick={() => {
-            if (step === "link" || step === "otp") setStep("main");
+            if (step === "link") setStep("main");
+            else if (step === "link_otp") setStep("link");
+            else if (step === "otp") setStep("main");
             else if (step === "confirm") setStep("otp");
             else router.back();
           }}
@@ -451,11 +458,33 @@ export default function UserWithdrawPage() {
                   style={{ flex: 1, padding: "13px 0", borderRadius: 14, border: "1.5px solid #E4DCF0", backgroundColor: "#FFFFFF", color: "#6B6B6B", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
                   Cancel
                 </button>
-                <button onClick={handleLinkBank} disabled={linkLoading || !accountName || !selectedBank}
-                  style={{ flex: 2, padding: "13px 0", borderRadius: 14, border: "none", backgroundColor: linkLoading || !accountName || !selectedBank ? "#9E9E9E" : "#5B0EA6", color: "#FFFFFF", fontSize: 13, fontWeight: 700, cursor: linkLoading || !accountName || !selectedBank ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                  {linkLoading
-                    ? <><div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#FFFFFF", animation: "spin 0.8s linear infinite" }} />Linking...</>
-                    : <><CheckCircle size={15} />Link Account</>}
+                <button
+                  onClick={async () => {
+                    if (!accountName || !selectedBank) return;
+                    setLinkOtpLoading(true);
+                    setLinkError("");
+                    try {
+                      const res = await fetch("/api/paystack/send-withdrawal-otp", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ user_id: user!.id, email: user!.email }),
+                      });
+                      const data = await res.json();
+                      if (!data.success) throw new Error(data.error || "Failed to send OTP");
+                      setLinkOtpValue("");
+                      setLinkOtpError("");
+                      setStep("link_otp");
+                    } catch (e: any) {
+                      setLinkError(e.message);
+                    } finally {
+                      setLinkOtpLoading(false);
+                    }
+                  }}
+                  disabled={linkOtpLoading || !accountName || !selectedBank}
+                  style={{ flex: 2, padding: "13px 0", borderRadius: 14, border: "none", backgroundColor: linkOtpLoading || !accountName || !selectedBank ? "#9E9E9E" : "#5B0EA6", color: "#FFFFFF", fontSize: 13, fontWeight: 700, cursor: linkOtpLoading || !accountName || !selectedBank ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  {linkOtpLoading
+                    ? <><div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#FFFFFF", animation: "spin 0.8s linear infinite" }} />Sending OTP...</>
+                    : <><CheckCircle size={15} />Continue</>}
                 </button>
               </div>
 
@@ -464,6 +493,110 @@ export default function UserWithdrawPage() {
                 <p style={{ fontSize: 11, color: "#9E9E9E", margin: 0, lineHeight: 1.6 }}>
                   🔒 For your security, withdrawals to newly linked accounts are held for 24 hours before processing.
                 </p>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── LINK BANK OTP ── */}
+          {step === "link_otp" && (
+            <motion.div key="link_otp" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+              <div style={{ backgroundColor: "#EDE0F7", borderRadius: 16, padding: "16px 18px" }}>
+                <p style={{ fontSize: 14, fontWeight: 700, color: "#5B0EA6", margin: "0 0 4px" }}>Verify your email</p>
+                <p style={{ fontSize: 12, color: "#7B2FBE", margin: 0, lineHeight: 1.6 }}>
+                  We sent a 6-digit code to <strong>{user?.email}</strong>. Enter it to confirm linking this bank account.
+                </p>
+              </div>
+
+              {/* Account summary */}
+              <div style={{ backgroundColor: "#FFFFFF", borderRadius: 16, padding: "14px 16px", boxShadow: "0 2px 8px rgba(91,14,166,0.06)", display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: "#E0F7EA", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Building2 size={18} style={{ color: "#00C853" }} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: "#0A0A0A", margin: "0 0 2px", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{accountName}</p>
+                  <p style={{ fontSize: 11, color: "#9E9E9E", margin: 0 }}>{selectedBank?.name} · {accountNumber}</p>
+                </div>
+                <CheckCircle size={16} style={{ color: "#00C853", flexShrink: 0 }} />
+              </div>
+
+              {/* OTP input */}
+              <div>
+                <p style={{ fontSize: 12, fontWeight: 700, color: "#6B6B6B", margin: "0 0 8px" }}>ENTER OTP</p>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="000000"
+                  value={linkOtpValue}
+                  onChange={(e) => { setLinkOtpValue(e.target.value.replace(/\D/g, "")); setLinkOtpError(""); }}
+                  style={{
+                    width: "100%", backgroundColor: "#F7F5FA",
+                    border: `1.5px solid ${linkOtpError ? "#EF4444" : linkOtpValue.length === 6 ? "#00C853" : "#E4DCF0"}`,
+                    borderRadius: 14, padding: "16px", fontSize: 32, fontWeight: 900,
+                    color: "#0A0A0A", outline: "none", fontFamily: "monospace",
+                    boxSizing: "border-box" as const, textAlign: "center" as const, letterSpacing: 12,
+                  }}
+                />
+                {linkOtpError && (
+                  <p style={{ fontSize: 12, color: "#EF4444", margin: "6px 0 0", textAlign: "center", fontWeight: 600 }}>{linkOtpError}</p>
+                )}
+              </div>
+
+              {/* Resend */}
+              <p style={{ textAlign: "center", fontSize: 12, color: "#9E9E9E", margin: 0 }}>
+                Didn't receive it?{" "}
+                <button
+                  onClick={async () => {
+                    setLinkOtpError("");
+                    setLinkOtpValue("");
+                    try {
+                      await fetch("/api/paystack/send-withdrawal-otp", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ user_id: user!.id, email: user!.email }),
+                      });
+                    } catch {}
+                  }}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "#5B0EA6", fontSize: 12, fontWeight: 700, padding: 0 }}>
+                  Resend code
+                </button>
+              </p>
+
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={() => setStep("link")}
+                  style={{ flex: 1, padding: "13px 0", borderRadius: 14, border: "1.5px solid #E4DCF0", backgroundColor: "#FFFFFF", color: "#6B6B6B", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                  Back
+                </button>
+                <button
+                  onClick={async () => {
+                    if (linkOtpValue.length !== 6) { setLinkOtpError("Enter the 6-digit code"); return; }
+                    setLinkOtpLoading(true);
+                    setLinkOtpError("");
+                    try {
+                      // Verify OTP
+                      const verifyRes = await fetch("/api/paystack/verify-withdrawal-otp", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ user_id: user!.id, otp: linkOtpValue }),
+                      });
+                      const verifyData = await verifyRes.json();
+                      if (!verifyData.success) throw new Error(verifyData.error || "Invalid OTP");
+
+                      // OTP good — now link the bank
+                      await handleLinkBank();
+                    } catch (e: any) {
+                      setLinkOtpError(e.message);
+                    } finally {
+                      setLinkOtpLoading(false);
+                    }
+                  }}
+                  disabled={linkOtpLoading || linkOtpValue.length !== 6}
+                  style={{ flex: 2, padding: "13px 0", borderRadius: 14, border: "none", backgroundColor: linkOtpLoading || linkOtpValue.length !== 6 ? "#9E9E9E" : "#5B0EA6", color: "#FFFFFF", fontSize: 13, fontWeight: 700, cursor: linkOtpLoading || linkOtpValue.length !== 6 ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  {linkOtpLoading
+                    ? <><div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#FFFFFF", animation: "spin 0.8s linear infinite" }} />Verifying...</>
+                    : <><CheckCircle size={15} />Verify & Link</>}
+                </button>
               </div>
             </motion.div>
           )}
