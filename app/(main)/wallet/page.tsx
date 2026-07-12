@@ -27,12 +27,23 @@ export default function WalletPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const status = params.get("status");
+    const ref    = params.get("ref");
+    const amount = params.get("amount");
+    const uid    = params.get("uid");
+
     if (status) {
       setPaymentStatus(status);
-      if (status === "success") {
-        qc.invalidateQueries({ queryKey: ["wallet-balance"] });
-        qc.invalidateQueries({ queryKey: ["transactions"] });
-        qc.invalidateQueries({ queryKey: ["wallet-quick"] });
+      if (status === "success" && ref && uid) {
+        // Credit the wallet now that we're back on the client
+        fetch("/api/wallet/fund", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reference: ref, user_id: uid }),
+        }).then(() => {
+          qc.invalidateQueries({ queryKey: ["wallet-balance"] });
+          qc.invalidateQueries({ queryKey: ["transactions"] });
+          qc.invalidateQueries({ queryKey: ["wallet-quick"] });
+        }).catch(console.error);
       }
       window.history.replaceState({}, "", "/wallet");
     }
