@@ -151,6 +151,31 @@ export default function AdminSupportPage() {
           type: "booking",
           is_read: false,
         });
+        // Email the user
+        if (selectedTicket.users?.email) {
+          await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${process.env.NEXT_PUBLIC_RESEND_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              from: "Chillz Support <support@chillz.app>",
+              to: selectedTicket.users.email,
+              subject: `Re: ${selectedTicket.subject}`,
+              html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+                <h2 style="color:#5B0EA6;margin:0 0 8px">Chillz Support</h2>
+                <p style="color:#6B6B6B">Hi ${selectedTicket.users?.full_name || "there"},</p>
+                <p style="color:#6B6B6B">We've replied to your support ticket: <strong>${selectedTicket.subject}</strong></p>
+                <div style="background:#F7F5FA;border-left:4px solid #5B0EA6;border-radius:0 12px 12px 0;padding:14px 16px;margin:16px 0">
+                  <p style="font-size:14px;color:#0A0A0A;margin:0;line-height:1.6">${reply.trim().replace(/\n/g, "<br>")}</p>
+                </div>
+                <p style="color:#6B6B6B;font-size:13px">Open the Chillz app to reply and view the full conversation.</p>
+                <p style="color:#9E9E9E;font-size:11px;margin-top:24px">Chillz Nigeria · support@chillz.app</p>
+              </div>`,
+            }),
+          }).catch(() => {});
+        }
       }
 
       // Also notify vendor if this is a vendor ticket

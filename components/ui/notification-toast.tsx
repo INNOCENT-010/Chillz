@@ -178,9 +178,8 @@ export function NotificationToast() {
     }, 6000);
   }, [dismissToast]);
 
+  // Initialise audio once on mount regardless of auth state
   useEffect(() => {
-    if (!user?.id) return;
-
     audioRef.current = new Audio("/sounds/user-bell.mp3");
     audioRef.current.volume = 0.6;
 
@@ -195,6 +194,15 @@ export function NotificationToast() {
     };
     window.addEventListener("click", unlock);
     window.addEventListener("touchstart", unlock);
+
+    return () => {
+      window.removeEventListener("click", unlock);
+      window.removeEventListener("touchstart", unlock);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!user?.id) return;
 
     const channel = supabase
       .channel(`user-notifications-toast-${user.id}`)
