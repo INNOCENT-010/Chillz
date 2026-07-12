@@ -11,7 +11,7 @@ import {
   Phone, MessageCircle, Star, CheckCircle,
   XCircle, Receipt, Building2, X, AlertCircle,
   Navigation, QrCode, ChevronRight, Car, UserCheck,
-  UtensilsCrossed, ShoppingBag, ChevronLeft,
+  UtensilsCrossed, ShoppingBag, ChevronLeft, Bell,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format, parseISO } from "date-fns";
@@ -185,6 +185,22 @@ export default function BookingDetailPage() {
       setDisputeReason("");
     },
     onError: (e: any) => console.error("Dispute failed:", e.message),
+  });
+
+  // ── Call waiter (bell) ──────────────────────────────────────────────
+  const [waiterCalled, setWaiterCalled] = useState(false);
+  const waiterCooldownRef = useState<ReturnType<typeof setTimeout> | null>(null)[0];
+
+  const callWaiterMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await (supabase as any).rpc("ring_vendor_bell", { p_booking_id: id });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setWaiterCalled(true);
+      setTimeout(() => setWaiterCalled(false), 60000); // 60s cooldown before they can ring again
+    },
+    onError: (e: any) => console.error("Call waiter failed:", e.message),
   });
 
   if (isLoading) return (
@@ -388,6 +404,29 @@ export default function BookingDetailPage() {
                 </div>
               )}
             </div>
+          )}
+
+          {/* ── Call Waiter ── */}
+          {isCheckedIn && (
+            <button
+              onClick={() => callWaiterMutation.mutate()}
+              disabled={callWaiterMutation.isPending || waiterCalled}
+              style={{
+                width: "100%", padding: "14px 0", borderRadius: 16, border: "none",
+                backgroundColor: waiterCalled ? "#00C853" : callWaiterMutation.isPending ? "#9E9E9E" : "#F59E0B",
+                color: "#FFFFFF", fontSize: 14, fontWeight: 700,
+                cursor: callWaiterMutation.isPending || waiterCalled ? "not-allowed" : "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                boxShadow: waiterCalled ? "0 4px 16px rgba(0,200,83,0.3)" : "0 4px 16px rgba(245,158,11,0.3)",
+              }}>
+              {waiterCalled ? (
+                <><CheckCircle size={17} />Waiter Notified!</>
+              ) : callWaiterMutation.isPending ? (
+                <><div style={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#FFFFFF", animation: "spin 0.8s linear infinite" }} />Calling...</>
+              ) : (
+                <><Bell size={17} />Call Waiter</>
+              )}
+            </button>
           )}
 
           {/* ── Running tab / receipt banner ── */}

@@ -173,7 +173,17 @@ function PostCard({ post, isHyped, onHype, onView, onBuyTicket }: {
 
         {/* Vendor row */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!post.vendors?.id) return;
+              if (post.vendors.vendor_type === "event_organizer") {
+                router.push(`/organizer/${post.vendors.id}`);
+              } else if (post.vendors.venue_id) {
+                router.push(`/venue/${post.vendors.venue_id}`);
+              }
+            }}
+            style={{ display: "flex", alignItems: "center", gap: 9, cursor: "pointer" }}>
             <div style={{ width: 36, height: 36, borderRadius: 11, backgroundColor: "#EDE0F7", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden" }}>
               {post.vendors?.venues?.images?.[0]
                 ? <img src={post.vendors.venues.images[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -200,8 +210,8 @@ function PostCard({ post, isHyped, onHype, onView, onBuyTicket }: {
 
         {/* ── Event ticket strip ── */}
         {event && hasTickets && (
-          <div onClick={(e) => e.stopPropagation()}
-            style={{ backgroundColor: isSoldOut ? "#F7F5FA" : "#F9F5FF", borderRadius: 16, padding: "12px 14px", marginBottom: 10, border: `1.5px solid ${isSoldOut ? "#E4DCF0" : "#EDE0F7"}`, display: "flex", alignItems: "center", gap: 10 }}>
+          <div onClick={(e) => { e.stopPropagation(); router.push(`/discover/${post.id}`); }}
+            style={{ backgroundColor: isSoldOut ? "#F7F5FA" : "#F9F5FF", borderRadius: 16, padding: "12px 14px", marginBottom: 10, border: `1.5px solid ${isSoldOut ? "#E4DCF0" : "#EDE0F7"}`, display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
 
             {/* Event thumbnail */}
             <div style={{ width: 44, height: 44, borderRadius: 11, overflow: "hidden", flexShrink: 0, backgroundColor: "#EDE0F7" }}>
@@ -395,20 +405,17 @@ export default function DiscoverPage() {
   const hypeMutation = useMutation({
     mutationFn: async (postId: string) => {
       if (!user) return;
-      const alreadyHyped = hypedIds.has(postId);
-      if (alreadyHyped) {
-        await supabase.from("post_hypes").delete().eq("post_id", postId).eq("user_id", user.id);
-        await (supabase.from("vendor_posts") as any)
-          .update({ hype_count: Math.max(0, (rawPosts?.find((p: any) => p.id === postId)?.hype_count || 1) - 1) })
-          .eq("id", postId);
-        setHypedIds((prev) => { const next = new Set(prev); next.delete(postId); return next; });
-      } else {
-        await (supabase.from("post_hypes") as any).insert({ post_id: postId, user_id: user.id });
-        await (supabase.from("vendor_posts") as any)
-          .update({ hype_count: (rawPosts?.find((p: any) => p.id === postId)?.hype_count || 0) + 1 })
-          .eq("id", postId);
-        setHypedIds((prev) => new Set([...prev, postId]));
-      }
+      const { data, error } = await (supabase as any).rpc("toggle_post_hype", {
+        p_post_id: postId,
+        p_user_id: user.id,
+      });
+      if (error) throw error;
+      const result = (data as any)?.[0];
+      setHypedIds((prev) => {
+        const next = new Set(prev);
+        if (result?.hyped) next.add(postId); else next.delete(postId);
+        return next;
+      });
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["discover-posts"] }); },
   });

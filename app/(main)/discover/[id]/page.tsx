@@ -529,12 +529,16 @@ export default function PostDetailPage() {
       </div>
 
       {/* Bottom CTA */}
-      {venue.id && (
+      {(venue.id || vendor.id) && (
         <div style={{ position: "fixed", bottom: 72, left: 0, right: 0, padding: "10px 16px", backgroundColor: "rgba(255,255,255,0.97)", backdropFilter: "blur(8px)", borderTop: "1px solid #F2EEF9", maxWidth: 480, margin: "0 auto", zIndex: 40 }}>
-          <Link href={`/venue/${venue.id}`} style={{ textDecoration: "none", display: "block" }}>
+          <Link
+            href={vendor.vendor_type === "event_organizer" ? `/organizer/${vendor.id}` : `/venue/${venue.id}`}
+            style={{ textDecoration: "none", display: "block" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", backgroundColor: "#5B0EA6", borderRadius: 16, padding: "14px 18px", boxShadow: "0 4px 20px rgba(91,14,166,0.35)" }}>
               <div>
-                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", margin: "0 0 1px" }}>Visit venue page</p>
+                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", margin: "0 0 1px" }}>
+                  {vendor.vendor_type === "event_organizer" ? "Visit organizer page" : "Visit venue page"}
+                </p>
                 <p style={{ fontSize: 14, fontWeight: 800, color: "#FFFFFF", margin: 0 }}>{venue.name || vendor.business_name}</p>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 999, padding: "8px 14px" }}>
