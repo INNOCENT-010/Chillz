@@ -98,13 +98,26 @@ export function Providers({ children }: { children: React.ReactNode }) {
       }
     };
 
+    // pagehide/pageshow are the reliable iOS Safari equivalents of visibilitychange
+    const handlePageHide = () => { wasHidden = true; };
+    const handlePageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        // Page restored from bfcache — force full reload immediately
+        window.location.reload();
+      }
+    };
+
     document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("pagehide", handlePageHide);
+    window.addEventListener("pageshow", handlePageShow);
     document.addEventListener("click", handleClick, true);
     window.addEventListener("popstate", handlePopState);
 
     return () => {
       subscription.unsubscribe();
       document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("pagehide", handlePageHide);
+      window.removeEventListener("pageshow", handlePageShow);
       document.removeEventListener("click", handleClick, true);
       window.removeEventListener("popstate", handlePopState);
     };
