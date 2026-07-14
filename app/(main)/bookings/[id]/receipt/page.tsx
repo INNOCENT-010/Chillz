@@ -59,14 +59,15 @@ export default function BookingReceiptPage() {
   const { data: reservedBalance } = useQuery({
     queryKey: ["booking-reserved-balance", id, user?.id],
     queryFn: async () => {
-      if (!user?.id) return 0;
-      // Sum the USER_RESERVED ledger entries for this booking
+      if (!user?.id) return null;
       const { data } = await (supabase.from("ledger_entries") as any)
         .select("direction,amount")
         .eq("account_id", user.id)
         .eq("account_type", "USER_RESERVED")
         .eq("reference_id", id);
-      return ((data || []) as any[]).reduce(
+      const entries = (data || []) as any[];
+      if (!entries.length) return null; // null = fall back to reserved_amount
+      return entries.reduce(
         (acc: number, r: any) => r.direction === "CREDIT" ? acc + r.amount : acc - r.amount, 0
       );
     },
@@ -107,28 +108,29 @@ export default function BookingReceiptPage() {
       const billAmount  = receipt.total || booking.reserved_amount;
       const reserved    = booking.reserved_amount;
       const platformFee = Math.round(billAmount * 0.05);
-      const vendorPays  = billAmount - platformFee;
-      const refund      = Math.max(0, reserved - billAmount);
+      const vendorPays  = billAmount - platformFee; // vendor gets 95%, user pays full bill
 
-      // Check reserved balance covers the bill
-      // reserved balance should always >= billAmount since vendor
-      // can only bill up to what was reserved (enforced below)
-      // But if for any reason reserved < bill, fall back to wallet check
-      const effectiveReserved = reservedBalance ?? reserved;
-      if (billAmount > effectiveReserved && billAmount > (walletBalance || 0)) {
+      // How much of the bill is covered by reserved escrow
+      const effectiveReserved = Math.min(reservedBalance ?? reserved, billAmount);
+      // Any remaining balance above reserved comes from wallet
+      const walletDebit = Math.max(0, billAmount - effectiveReserved);
+      // Refund if bill < reserved
+      const refund = Math.max(0, (reservedBalance ?? reserved) - billAmount);
+
+      if (billAmount > effectiveReserved + (walletBalance || 0)) {
         throw new Error("Insufficient balance to confirm this bill.");
       }
 
       const txId = crypto.randomUUID();
 
       const ledgerRows: any[] = [
-        // Release from reserved escrow
+        // Release reserved escrow
         {
           transaction_id: txId,
           account_id:     userId,
           account_type:   "USER_RESERVED",
           direction:      "DEBIT",
-          amount:         reserved,
+          amount:         effectiveReserved,
           note:           "Escrow released — payment confirmed by guest",
           reference_id:   id,
           reference_type: "booking_complete",
@@ -157,7 +159,21 @@ export default function BookingReceiptPage() {
         },
       ];
 
-      // Refund difference back to user wallet if bill < reserved
+      // Debit wallet for any amount above reserved
+      if (walletDebit > 0) {
+        ledgerRows.push({
+          transaction_id: txId,
+          account_id:     userId,
+          account_type:   "USER_WALLET",
+          direction:      "DEBIT",
+          amount:         walletDebit,
+          note:           `Wallet top-up for bill overage — ₦${walletDebit.toLocaleString()} above reserved`,
+          reference_id:   id,
+          reference_type: "booking_complete",
+        });
+      }
+
+      // Refund wallet if bill < reserved
       if (refund > 0) {
         ledgerRows.push({
           transaction_id: txId,
@@ -317,9 +333,12 @@ export default function BookingReceiptPage() {
 
   // For the confirm button: check against reserved balance not wallet
   // The money is already locked in USER_RESERVED so no wallet deduction needed
+  // If no USER_RESERVED entries exist (old bookings before trigger fix),
+  // fall back to reserved_amount from the booking row itself
   const effectiveReserved = reservedBalance ?? reserved;
-  const canConfirm        = isSent && total <= effectiveReserved;
-  const needsTopUp        = isSent && total > effectiveReserved && total > (walletBalance || 0);
+  const totalAvailable    = (effectiveReserved || 0) + (walletBalance || 0);
+  const canConfirm        = isSent && total <= totalAvailable;
+  const needsTopUp        = isSent && total > totalAvailable;
 
   if (isLoading) return (
     <MainLayout>
@@ -483,12 +502,7 @@ export default function BookingReceiptPage() {
                   <span style={{ fontSize: 13, color: "#6B6B6B" }}>Subtotal</span>
                   <span style={{ fontSize: 13, fontWeight: 600, color: "#0A0A0A" }}>{formatCurrency(subtotal)}</span>
                 </div>
-                {platform > 0 && (
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    
-                    <span style={{ fontSize: 12, color: "#9E9E9E" }}>{formatCurrency(platform)}</span>
-                  </div>
-                )}
+                
                 {refundAmt > 0 && isSent && (
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
                     <span style={{ fontSize: 12, color: "#059669" }}>Refund to wallet</span>
@@ -530,9 +544,15 @@ export default function BookingReceiptPage() {
                 <span style={{ fontSize: 13, color: "#6B6B6B" }}>Reserved for this booking</span>
                 <span style={{ fontSize: 14, fontWeight: 900, color: ACCENT }}>{formatCurrency(reserved)}</span>
               </div>
+              {total > reserved && (
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                  <span style={{ fontSize: 12, color: "#D97706" }}>Extra from wallet</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#D97706" }}>-{formatCurrency(total - reserved)}</span>
+                </div>
+              )}
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 12, color: "#9E9E9E" }}>Wallet balance</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: "#6B6B6B" }}>{formatCurrency(walletBalance || 0)}</span>
+                <span style={{ fontSize: 12, color: "#9E9E9E" }}>Wallet balance after</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#6B6B6B" }}>{formatCurrency(Math.max(0, (walletBalance || 0) - Math.max(0, total - reserved)))}</span>
               </div>
             </div>
           )}

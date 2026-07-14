@@ -10,12 +10,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 0,
+            staleTime: 1000 * 30,
             gcTime: 1000 * 60 * 5,
             retry: 1,
             refetchOnMount: true,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
+            refetchOnWindowFocus: true,
+            refetchOnReconnect: true,
           },
         },
       })
@@ -88,8 +88,31 @@ export function Providers({ children }: { children: React.ReactNode }) {
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, [setUser]);
+    // Re-check session when tab regains focus — handles expired tokens
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === "visible") {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          setUser(null);
+        } else {
+          const { data } = await supabase
+            .from("users")
+            .select("*")
+            .eq("id", session.user.id)
+            .single();
+          if (data) setUser(data as any);
+        }
+        // Invalidate all queries so fresh data loads
+        queryClient.invalidateQueries();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      subscription.unsubscribe();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [setUser, queryClient]);
 
   return (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>

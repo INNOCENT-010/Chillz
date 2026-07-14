@@ -159,7 +159,11 @@ export function VenueDiscoverCard({
                 </div>
               )}
               <button
-                onClick={(e) => e.preventDefault()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  router.push(`/venue/${venue.id}?book=true`);
+                }}
                 style={{ backgroundColor: accentColor, color: "#FFFFFF", border: "none", borderRadius: 10, padding: "7px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}
               >
                 Reserve

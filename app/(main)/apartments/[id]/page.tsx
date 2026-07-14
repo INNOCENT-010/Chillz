@@ -272,7 +272,15 @@ export default function ApartmentDetailPage() {
         })
         .select().single();
       if (error) throw error;
-      await reserveBookingAmount(user.id, booking.id, amount);
+      const reserveRes = await fetch("/api/bookings/reserve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: user.id, booking_id: booking.id, amount }),
+      });
+      if (!reserveRes.ok) {
+        const reserveErr = await reserveRes.json();
+        throw new Error(reserveErr.error || "Failed to reserve booking amount");
+      }
       return booking;
     },
     onSuccess: (booking) => {

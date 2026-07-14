@@ -469,7 +469,7 @@ export default function VendorBookingsPage() {
                     </div>
 
                     {/* Guest info block — hotel/apartment */}
-                    {!isCarBook && !isVenueVendor && (guest.email || booking.nin_number || booking.id_document_url) && (
+                    {!isCarBook && !isVenueVendor && (guest.email || guest.phone || booking.nin_number || booking.id_document_url) && (
                       <div style={{ padding: "8px 12px", backgroundColor: "#F7F5FA", borderRadius: 10, marginBottom: 8 }}>
                         <p style={{ fontSize: 9, fontWeight: 700, color: "#9E9E9E", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 5px" }}>Guest Info</p>
                         {guest.email && (
@@ -479,9 +479,11 @@ export default function VendorBookingsPage() {
                           </div>
                         )}
                         {guest.phone && (
-                          <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 3 }}>
-                            <Phone size={11} style={{ color: "#9E9E9E" }} />
-                            <span style={{ fontSize: 12, color: "#6B6B6B" }}>{guest.phone}</span>
+                          <div
+                            onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${guest.phone.replace(/[^0-9]/g, "")}`, "_blank"); }}
+                            style={{ display: "inline-flex", alignItems: "center", gap: 5, backgroundColor: "#E0F7EA", border: "1px solid #A7F3D0", borderRadius: 8, padding: "4px 10px", cursor: "pointer", marginBottom: 3 }}>
+                            <span style={{ fontSize: 12 }}>💬</span>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: "#059669" }}>{guest.phone}</span>
                           </div>
                         )}
                         {booking.nin_number && (
@@ -500,13 +502,23 @@ export default function VendorBookingsPage() {
                     )}
 
                     {/* Venue guest info block */}
-                    {isVenueVendor && guest.email && (
+                    {isVenueVendor && (guest.email || guest.phone) && (
                       <div style={{ padding: "8px 12px", backgroundColor: "#F7F5FA", borderRadius: 10, marginBottom: 8 }}>
                         <p style={{ fontSize: 9, fontWeight: 700, color: "#9E9E9E", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 5px" }}>Guest Info</p>
-                        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                          <Mail size={11} style={{ color: "#9E9E9E" }} />
-                          <span style={{ fontSize: 12, color: "#6B6B6B" }}>{guest.email}</span>
-                        </div>
+                        {guest.email && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: guest.phone ? 4 : 0 }}>
+                            <Mail size={11} style={{ color: "#9E9E9E" }} />
+                            <span style={{ fontSize: 12, color: "#6B6B6B" }}>{guest.email}</span>
+                          </div>
+                        )}
+                        {guest.phone && (
+                          <div
+                            onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${guest.phone.replace(/[^0-9]/g, "")}`, "_blank"); }}
+                            style={{ display: "inline-flex", alignItems: "center", gap: 5, backgroundColor: "#E0F7EA", border: "1px solid #A7F3D0", borderRadius: 8, padding: "4px 10px", cursor: "pointer", marginTop: 2 }}>
+                            <span style={{ fontSize: 12 }}>💬</span>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: "#059669" }}>{guest.phone}</span>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -675,8 +687,15 @@ export default function VendorBookingsPage() {
                       </div>
                       <div>
                         <p style={{ fontWeight: 800, fontSize: 15, color: "#0A0A0A", margin: "0 0 2px" }}>{sb?.users?.full_name || "Guest"}</p>
-                        {sb?.users?.email && <p style={{ fontSize: 12, color: "#6B6B6B", margin: "0 0 1px" }}>{sb.users.email}</p>}
-                        {sb?.users?.phone && <p style={{ fontSize: 12, color: "#6B6B6B", margin: 0 }}>{sb.users.phone}</p>}
+                        {sb?.users?.email && <p style={{ fontSize: 12, color: "#6B6B6B", margin: "0 0 4px" }}>{sb.users.email}</p>}
+                        {sb?.users?.phone && (
+                          <div
+                            onClick={() => window.open(`https://wa.me/${sb.users.phone.replace(/[^0-9]/g, "")}`, "_blank")}
+                            style={{ display: "inline-flex", alignItems: "center", gap: 5, backgroundColor: "#E0F7EA", border: "1px solid #A7F3D0", borderRadius: 8, padding: "4px 10px", cursor: "pointer" }}>
+                            <span style={{ fontSize: 13 }}>💬</span>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: "#059669" }}>{sb.users.phone}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

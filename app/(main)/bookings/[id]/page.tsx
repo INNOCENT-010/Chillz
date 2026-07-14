@@ -489,7 +489,14 @@ export default function BookingDetailPage() {
               <p style={{ fontSize: 11, fontWeight: 700, color: "#9E9E9E", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 8px" }}>
                 {isCarRental ? "Car Rental Company" : "Venue"}
               </p>
-              <p style={{ fontWeight: 800, fontSize: 16, color: "#0A0A0A", margin: "0 0 4px", fontFamily: "var(--font-display,Syne,sans-serif)" }}>
+              <p
+                onClick={() => {
+                  if (vendor.vendor_type === "hotel") router.push(`/hotel/${booking.vendor_id}`);
+                  else if (vendor.vendor_type === "car_rental") router.push(`/car-rentals/${booking.vendor_id}`);
+                  else if (vendor.vendor_type === "apartment") router.push(`/apartments/${booking.vendor_id}`);
+                  else if (venue.id) router.push(`/venue/${venue.id}`);
+                }}
+                style={{ fontWeight: 800, fontSize: 16, color: "#0A0A0A", margin: "0 0 4px", fontFamily: "var(--font-display,Syne,sans-serif)", cursor: "pointer", textDecorationLine: "underline", textDecorationColor: "#E4DCF0", textDecorationThickness: 1, textUnderlineOffset: 3 }}>
                 {venue.name || vendor.business_name || "Your Booking"}
               </p>
               {venue.address && (

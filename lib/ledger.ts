@@ -1,4 +1,14 @@
 import { supabase } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
+
+// Server-side admin client for writes that need to bypass RLS
+// Only used in functions called from API routes, never from client components
+function getAdminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 // ─── WALLET FUNDING ───────────────────────────────────────────────────────────
 export async function fundUserWallet(

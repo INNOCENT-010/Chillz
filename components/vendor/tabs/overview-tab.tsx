@@ -405,6 +405,19 @@ export function OverviewTab({ vendor, ledger, checkedInBookings, receiptSentBook
                       {checkedInTime && <span style={{ fontSize: 10, color: "#9E9E9E" }}>In {checkedInTime}</span>}
                       <span style={{ fontSize: 10, fontWeight: 600, color: "#6B6B6B" }}>₦{(booking.reserved_amount / 1000).toFixed(0)}k reserved</span>
                     </div>
+                    {booking.users?.phone && (
+                      <a
+                        href={`https://wa.me/${booking.users.phone.replace(/[^0-9]/g, "")}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4, marginTop: 5, backgroundColor: "#E0F7EA", border: "1px solid #A7F3D0", borderRadius: 8, padding: "3px 9px" }}>
+                        <span style={{ fontSize: 11 }}>💬</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: "#059669" }}>
+                          WhatsApp {booking.users.phone}
+                        </span>
+                      </a>
+                    )}
                   </div>
                   <div style={{ backgroundColor: "#5B0EA6", borderRadius: 10, padding: "6px 12px", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
                     <Receipt size={12} style={{ color: "#FFFFFF" }} />

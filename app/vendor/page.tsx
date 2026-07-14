@@ -513,7 +513,7 @@ export default function VendorDashboard() {
     queryFn: async () => {
       const { data } = await supabase
         .from("bookings")
-        .select("*, users(full_name, avatar_url, email)")
+        .select("*, users(full_name, avatar_url, email, phone)")
         .eq("vendor_id", vendor.id).eq("status", "checked_in")
         .order("checked_in_at", { ascending: true });
       return (data || []) as any[];

@@ -56,6 +56,19 @@ export default function ReviewPage() {
     enabled: !!booking?.venue_id,
   });
 
+  const { data: vendor } = useQuery({
+    queryKey: ["review-vendor", booking?.vendor_id],
+    queryFn: async () => {
+      if (!booking?.vendor_id) return null;
+      const { data } = await (supabase.from("vendors") as any)
+        .select("id, vendor_type")
+        .eq("id", booking.vendor_id)
+        .maybeSingle();
+      return data as any;
+    },
+    enabled: !!booking?.vendor_id,
+  });
+
   const { data: existingReview } = useQuery({
     queryKey: ["existing-review", bookingId],
     queryFn: async () => {
@@ -168,7 +181,10 @@ export default function ReviewPage() {
             Thank you!
           </h2>
           <p style={{ fontSize: 14, color: "#6B6B6B", margin: "0 0 6px" }}>
-            Your {rating}★ review for <strong>{venue?.name || "the venue"}</strong> has been submitted.
+            Your {rating}★ review for <strong>{venue?.name || "the vendor"}</strong> has been submitted.
+          </p>
+          <p style={{ fontSize: 12, color: "#9E9E9E", margin: "0 0 6px" }}>
+            Reviews help others make better decisions on Chillz.
           </p>
           <p style={{ fontSize: 13, color: "#9E9E9E", margin: "0 0 32px" }}>
             Reviews help others discover great spots on Chillz.
@@ -178,10 +194,19 @@ export default function ReviewPage() {
               style={{ flex: 1, padding: "13px 0", borderRadius: 14, border: "1.5px solid #E4DCF0", backgroundColor: "#FFFFFF", color: "#5B0EA6", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
               My Bookings
             </button>
-            {venue?.id && (
-              <button onClick={() => router.push(`/venue/${venue.id}`)}
+            {(venue?.id || booking?.vendor_id) && (
+              <button onClick={() => {
+                const type = vendor?.vendor_type;
+                if (type === "hotel") router.push(`/hotel/${booking.vendor_id}`);
+                else if (type === "car_rental") router.push(`/car-rental/${booking.vendor_id}`);
+                else if (type === "apartment") router.push(`/apartment/${booking.vendor_id}`);
+                else if (venue?.id) router.push(`/venue/${venue.id}`);
+              }}
                 style={{ flex: 1, padding: "13px 0", borderRadius: 14, border: "none", backgroundColor: "#5B0EA6", color: "#FFFFFF", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
-                View Venue
+                {vendor?.vendor_type === "hotel" ? "View Hotel"
+                  : vendor?.vendor_type === "car_rental" ? "View Cars"
+                  : vendor?.vendor_type === "apartment" ? "View Property"
+                  : "View Venue"}
               </button>
             )}
           </div>

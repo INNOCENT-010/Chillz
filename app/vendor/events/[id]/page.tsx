@@ -360,8 +360,8 @@ export default function VendorEventDetailPage() {
         {/* Stats */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
           {[
-            { label: "Sold", value: String(soldCount), sub: event.capacity ? `of ${event.capacity}` : "no limit", color: "#5B0EA6" },
-            { label: "Revenue", value: formatCurrency(Math.round(totalRevenue * 0.95)), sub: "after 5% fee", color: "#059669" },
+            { label: "Available", value: event.capacity ? String(Math.max(0, event.capacity - soldCount)) : "∞", sub: event.capacity ? `of ${event.capacity} total` : "unlimited", color: "#5B0EA6" },
+            { label: "Sold", value: String(soldCount), sub: `${formatCurrency(Math.round(totalRevenue * 0.95))} earned`, color: "#059669" },
             { label: "Price", value: event.ticket_types?.[0] ? formatCurrency(event.ticket_types[0].price) : event.ticket_price > 0 ? formatCurrency(event.ticket_price) : "Free", sub: "per ticket", color: "#D97706" },
           ].map(({ label, value, sub, color }) => (
             <div key={label} style={{ backgroundColor: "#FFFFFF", borderRadius: 14, padding: "12px 10px", textAlign: "center", boxShadow: "0 1px 8px rgba(91,14,166,0.06)" }}>

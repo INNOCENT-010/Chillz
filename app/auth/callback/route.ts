@@ -38,5 +38,7 @@ export async function GET(req: NextRequest) {
   const accountType = data.user.user_metadata?.account_type;
   const redirectTo = accountType === "vendor" ? "/vendor" : next === "/" ? "/home" : next;
 
-  return NextResponse.redirect(`${origin}${redirectTo}`);
+  const response = NextResponse.redirect(`${origin}${redirectTo}`);
+  response.headers.set("Cache-Control", "no-store");
+  return response;
 }

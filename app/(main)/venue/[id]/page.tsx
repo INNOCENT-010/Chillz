@@ -175,7 +175,7 @@ export default function VenueDetailPage() {
   }, [id]);
 
   useEffect(() => {
-    if (searchParams.get("book") === "1" && selectedCount() > 0) {
+    if (searchParams.get("book") === "true") {
       setShowBooking(true);
       router.replace(`/venue/${id}`);
     }

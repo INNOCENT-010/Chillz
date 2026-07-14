@@ -465,11 +465,21 @@ export default function EventDetailPage() {
                 <Users size={18} style={{ color: "#5B0EA6" }} />
               </div>
               <div>
-                <p style={{ fontSize: 10, fontWeight: 700, color: "#9E9E9E", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 2px" }}>Capacity</p>
-                <p style={{ fontSize: 13, fontWeight: 700, color: "#0A0A0A", margin: 0 }}>
-                  {(event.total_capacity || event.capacity).toLocaleString()} attendees
-                  {event.tickets_sold > 0 && <span style={{ fontWeight: 500, color: "#6B6B6B" }}> · {event.tickets_sold} sold</span>}
-                </p>
+                <p style={{ fontSize: 10, fontWeight: 700, color: "#9E9E9E", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 4px" }}>Tickets</p>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, backgroundColor: "#E0F7EA", borderRadius: 8, padding: "3px 10px" }}>
+                    <div style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#00C853" }} />
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#059669" }}>
+                      Available: {Math.max(0, (event.total_capacity || event.capacity) - (event.tickets_sold || 0)).toLocaleString()}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, backgroundColor: "#EDE0F7", borderRadius: 8, padding: "3px 10px" }}>
+                    <Ticket size={10} style={{ color: "#5B0EA6" }} />
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#5B0EA6" }}>
+                      Sold: {(event.tickets_sold || 0).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           )}
