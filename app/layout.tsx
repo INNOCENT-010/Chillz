@@ -3,6 +3,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 import { CookieConsent } from "@/components/ui/cookie-consent";
 import { SplashScreen } from "@/components/layout/splash-screen";
+import { RouterRefresh } from "@/components/ui/router-refresh";
 
 export const metadata: Metadata = {
   title: "Chillz — Discover Lagos & Port Harcourt",
@@ -33,6 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <Providers>
           <SplashScreen />
+          <RouterRefresh />
           {children}
         </Providers>
       <CookieConsent />

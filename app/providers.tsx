@@ -49,7 +49,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       }
     });
 
-    // 2. Auth state changes (login, logout, token refresh)
+    // 2. Auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === "SIGNED_OUT") {
@@ -60,55 +60,40 @@ export function Providers({ children }: { children: React.ReactNode }) {
         if (event === "TOKEN_REFRESHED" || event === "SIGNED_IN") {
           if (session?.user) {
             await syncUser(session.user.id);
-            // Refetch queries with fresh token
             queryClient.invalidateQueries();
           }
         }
       }
     );
 
-    // 3. Track when tab was hidden
-    let hiddenAt: number | null = null;
-    let needsRefreshOnNav = false;
+    // 3. Hard navigate after any tab switch to bypass Next.js router cache
+    let wasHidden = false;
 
     const handleVisibility = () => {
       if (document.visibilityState === "hidden") {
-        hiddenAt = Date.now();
-        needsRefreshOnNav = false;
-        return;
-      }
-
-      if (document.visibilityState === "visible" && hiddenAt !== null) {
-        const awayMs = Date.now() - hiddenAt;
-        hiddenAt = null;
-
-        if (awayMs >= 30_000) {
-          // Away for 30+ seconds — flag that next navigation should hard reload
-          needsRefreshOnNav = true;
-          // Also invalidate current page queries immediately
-          queryClient.invalidateQueries();
-        }
+        wasHidden = true;
       }
     };
 
-    // Intercept clicks on links and buttons — if flagged, hard reload destination
     const handleClick = (e: MouseEvent) => {
-      if (!needsRefreshOnNav) return;
-      const anchor = (e.target as HTMLElement).closest("a");
-      if (!anchor || !anchor.href) return;
-      const url = new URL(anchor.href);
-      if (url.origin !== window.location.origin) return;
-      // Same-origin navigation — hard reload instead of client navigation
-      e.preventDefault();
-      e.stopPropagation();
-      needsRefreshOnNav = false;
-      window.location.href = anchor.href;
+      if (!wasHidden) return;
+      const anchor = (e.target as HTMLElement).closest("a[href]");
+      if (!anchor) return;
+      const href = (anchor as HTMLAnchorElement).href;
+      if (!href) return;
+      try {
+        const url = new URL(href);
+        if (url.origin !== window.location.origin) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        wasHidden = false;
+        window.location.href = href;
+      } catch {}
     };
 
-    // Also intercept back/forward button
     const handlePopState = () => {
-      if (needsRefreshOnNav) {
-        needsRefreshOnNav = false;
+      if (wasHidden) {
+        wasHidden = false;
         window.location.reload();
       }
     };
