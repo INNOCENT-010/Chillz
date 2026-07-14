@@ -66,17 +66,28 @@ export function Providers({ children }: { children: React.ReactNode }) {
       }
     );
 
-    // 3. Hard navigate after any tab switch to bypass Next.js router cache
+    // 3. Hard navigate after tab switch — works on both desktop and iOS
     let wasHidden = false;
+    let reloading = false;
+
+    const markHidden = () => { wasHidden = true; };
 
     const handleVisibility = () => {
-      if (document.visibilityState === "hidden") {
-        wasHidden = true;
+      if (document.visibilityState === "hidden") markHidden();
+    };
+
+    const handlePageHide = () => markHidden();
+
+    // iOS bfcache restore — DON'T reload immediately, just mark as hidden
+    // so the next user interaction triggers hard nav instead
+    const handlePageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        wasHidden = true; // mark stale, let next click handle it
       }
     };
 
     const handleClick = (e: MouseEvent) => {
-      if (!wasHidden) return;
+      if (!wasHidden || reloading) return;
       const anchor = (e.target as HTMLElement).closest("a[href]");
       if (!anchor) return;
       const href = (anchor as HTMLAnchorElement).href;
@@ -87,22 +98,15 @@ export function Providers({ children }: { children: React.ReactNode }) {
         e.preventDefault();
         e.stopImmediatePropagation();
         wasHidden = false;
+        reloading = true;
         window.location.href = href;
       } catch {}
     };
 
     const handlePopState = () => {
-      if (wasHidden) {
+      if (wasHidden && !reloading) {
         wasHidden = false;
-        window.location.reload();
-      }
-    };
-
-    // pagehide/pageshow are the reliable iOS Safari equivalents of visibilitychange
-    const handlePageHide = () => { wasHidden = true; };
-    const handlePageShow = (e: PageTransitionEvent) => {
-      if (e.persisted) {
-        // Page restored from bfcache — force full reload immediately
+        reloading = true;
         window.location.reload();
       }
     };
