@@ -8,6 +8,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { CalendarCheck, MapPin, ChevronRight, Clock, Bookmark } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
+import { useState } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
 
@@ -155,6 +156,7 @@ function PastBookingRow({ booking, i }: { booking: any; i: number }) {
 export default function BookingsPage() {
   const { user } = useAuthStore();
   const router = useRouter();
+  const [tab, setTab] = useState<"active" | "past">("active");
 
   const { data: bookings, isLoading } = useQuery({
     queryKey: ["bookings", user?.id],
@@ -217,6 +219,25 @@ export default function BookingsPage() {
   return (
     <MainLayout>
       {header}
+      {/* Inner tabs */}
+      <div style={{ display: "flex", padding: "12px 16px 0", gap: 8 }}>
+        {[
+          { key: "active", label: "Active", count: active.length, dot: "#00C853" },
+          { key: "past",   label: "Past",   count: past.length,   dot: "#9E9E9E" },
+        ].map(({ key, label, count, dot }) => (
+          <button key={key} onClick={() => setTab(key as any)}
+            style={{ flex: 1, padding: "10px 0", borderRadius: 12, border: "none", backgroundColor: tab === key ? "#5B0EA6" : "#FFFFFF", color: tab === key ? "#FFFFFF" : "#6B6B6B", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxShadow: tab === key ? "0 2px 10px rgba(91,14,166,0.25)" : "none" }}>
+            <div style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: tab === key ? "#FFFFFF" : dot }} />
+            {label}
+            {count > 0 && (
+              <span style={{ fontSize: 10, fontWeight: 800, backgroundColor: tab === key ? "rgba(255,255,255,0.25)" : "#F2EEF9", color: tab === key ? "#FFFFFF" : "#9E9E9E", padding: "1px 6px", borderRadius: 999 }}>
+                {count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
       <div style={{ padding: "14px 16px 100px" }}>
         {isLoading ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -224,35 +245,35 @@ export default function BookingsPage() {
               <div key={i} style={{ height: 110, borderRadius: 20, backgroundColor: "#F2EEF9", animation: "pulse 1.5s ease-in-out infinite" }} />
             ))}
           </div>
-        ) : bookings && bookings.length > 0 ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-
-            {/* Active */}
-            {active.length > 0 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#00C853" }} />
-                  <p style={{ fontSize: 11, fontWeight: 700, color: "#00C853", textTransform: "uppercase", letterSpacing: "0.07em", margin: 0 }}>Active</p>
-                  <span style={{ fontSize: 11, color: "#9E9E9E" }}>· {active.length}</span>
-                </div>
-                {active.map((b: any, i: number) => <ActiveBookingCard key={b.id} booking={b} i={i} />)}
-              </div>
-            )}
-
-            {/* Past */}
-            {past.length > 0 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#9E9E9E" }} />
-                  <p style={{ fontSize: 11, fontWeight: 700, color: "#9E9E9E", textTransform: "uppercase", letterSpacing: "0.07em", margin: 0 }}>Past</p>
-                  <span style={{ fontSize: 11, color: "#9E9E9E" }}>· {past.length}</span>
-                </div>
-                {past.map((b: any, i: number) => <PastBookingRow key={b.id} booking={b} i={i} />)}
-              </div>
-            )}
-
-          </div>
+        ) : tab === "active" ? (
+          active.length > 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {active.map((b: any, i: number) => <ActiveBookingCard key={b.id} booking={b} i={i} />)}
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 60, gap: 12, textAlign: "center" }}>
+              <CalendarCheck size={36} style={{ color: "#E4DCF0" }} />
+              <p style={{ fontWeight: 700, fontSize: 15, color: "#0A0A0A", margin: 0 }}>No active bookings</p>
+              <p style={{ fontSize: 13, color: "#9E9E9E", margin: 0 }}>Your confirmed and ongoing bookings show here.</p>
+              <button onClick={() => setTab("past")} style={{ fontSize: 13, color: "#5B0EA6", fontWeight: 700, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                View past bookings →
+              </button>
+            </div>
+          )
         ) : (
+          past.length > 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {past.map((b: any, i: number) => <PastBookingRow key={b.id} booking={b} i={i} />)}
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 60, gap: 12, textAlign: "center" }}>
+              <CalendarCheck size={36} style={{ color: "#E4DCF0" }} />
+              <p style={{ fontWeight: 700, fontSize: 15, color: "#0A0A0A", margin: 0 }}>No past bookings</p>
+              <p style={{ fontSize: 13, color: "#9E9E9E", margin: 0 }}>Completed and cancelled bookings will appear here.</p>
+            </div>
+          )
+        )}
+        {!isLoading && !bookings?.length && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 80, gap: 14, textAlign: "center" }}>
             <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
               style={{ width: 72, height: 72, borderRadius: 20, background: "linear-gradient(135deg, #EDE0F7, #F2EEF9)", display: "flex", alignItems: "center", justifyContent: "center" }}>

@@ -9,6 +9,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { Ticket, Calendar, MapPin, Lock, Bookmark, ChevronRight } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
+import { useState } from "react";
 import { formatCurrency } from "@/lib/utils";
 
 type StatusStyle = { bg: string; color: string; label: string; dot: string };
@@ -160,6 +161,8 @@ function PastTicketRow({ ticket, i }: { ticket: any; i: number }) {
 export default function TicketsPage() {
   const { user } = useAuthStore();
   const router = useRouter();
+  const [tab, setTab] = useState<"active" | "past">("active");
+  
 
   const { data: tickets, isLoading } = useQuery({
     queryKey: ["tickets", user?.id],
@@ -227,6 +230,25 @@ export default function TicketsPage() {
   return (
     <MainLayout>
       {header}
+      {/* Inner tabs */}
+      <div style={{ display: "flex", padding: "12px 16px 0", gap: 8 }}>
+        {[
+          { key: "active", label: "Upcoming", count: active.length, dot: "#5B0EA6" },
+          { key: "past",   label: "Past",     count: past.length,   dot: "#9E9E9E" },
+        ].map(({ key, label, count, dot }) => (
+          <button key={key} onClick={() => setTab(key as any)}
+            style={{ flex: 1, padding: "10px 0", borderRadius: 12, border: "none", backgroundColor: tab === key ? "#5B0EA6" : "#FFFFFF", color: tab === key ? "#FFFFFF" : "#6B6B6B", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxShadow: tab === key ? "0 2px 10px rgba(91,14,166,0.25)" : "none" }}>
+            <div style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: tab === key ? "#FFFFFF" : dot }} />
+            {label}
+            {count > 0 && (
+              <span style={{ fontSize: 10, fontWeight: 800, backgroundColor: tab === key ? "rgba(255,255,255,0.25)" : "#F2EEF9", color: tab === key ? "#FFFFFF" : "#9E9E9E", padding: "1px 6px", borderRadius: 999 }}>
+                {count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
       <div style={{ padding: "14px 16px 100px" }}>
         {isLoading ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -234,46 +256,33 @@ export default function TicketsPage() {
               <div key={i} style={{ height: 110, borderRadius: 20, backgroundColor: "#F2EEF9", animation: "pulse 1.5s ease-in-out infinite" }} />
             ))}
           </div>
-        ) : tickets && tickets.length > 0 ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-
-            {/* Active */}
-            {active.length > 0 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#5B0EA6" }} />
-                  <p style={{ fontSize: 11, fontWeight: 700, color: "#5B0EA6", textTransform: "uppercase", letterSpacing: "0.07em", margin: 0 }}>Upcoming</p>
-                  <span style={{ fontSize: 11, color: "#9E9E9E" }}>· {active.length}</span>
-                </div>
-                {active.map((t: any, i: number) => <ActiveTicketCard key={t.id} ticket={t} i={i} />)}
-              </div>
-            )}
-
-            {/* Past */}
-            {past.length > 0 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#9E9E9E" }} />
-                  <p style={{ fontSize: 11, fontWeight: 700, color: "#9E9E9E", textTransform: "uppercase", letterSpacing: "0.07em", margin: 0 }}>Past Events</p>
-                  <span style={{ fontSize: 11, color: "#9E9E9E" }}>· {past.length}</span>
-                </div>
-                {past.map((t: any, i: number) => <PastTicketRow key={t.id} ticket={t} i={i} />)}
-              </div>
-            )}
-
-          </div>
+        ) : tab === "active" ? (
+          active.length > 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {active.map((t: any, i: number) => <ActiveTicketCard key={t.id} ticket={t} i={i} />)}
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 60, gap: 12, textAlign: "center" }}>
+              <Ticket size={36} style={{ color: "#E4DCF0" }} />
+              <p style={{ fontWeight: 700, fontSize: 15, color: "#0A0A0A", margin: 0 }}>No upcoming tickets</p>
+              <p style={{ fontSize: 13, color: "#9E9E9E", margin: 0 }}>Tickets for future events will appear here.</p>
+              <button onClick={() => setTab("past")} style={{ fontSize: 13, color: "#5B0EA6", fontWeight: 700, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                View past tickets →
+              </button>
+            </div>
+          )
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 80, gap: 14, textAlign: "center" }}>
-            <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-              style={{ width: 72, height: 72, borderRadius: 20, background: "linear-gradient(135deg, #EDE0F7, #F2EEF9)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Ticket size={32} style={{ color: "#5B0EA6" }} />
-            </motion.div>
-            <p style={{ fontWeight: 800, fontSize: 16, color: "#0A0A0A", margin: 0, fontFamily: "var(--font-display, Syne, sans-serif)" }}>No tickets yet</p>
-            <p style={{ fontSize: 13, color: "#6B6B6B", margin: 0, lineHeight: 1.5, maxWidth: 240 }}>Book an event and your ticket will appear here.</p>
-            <Link href="/discover" style={{ backgroundColor: "#5B0EA6", color: "#FFFFFF", textDecoration: "none", borderRadius: 14, padding: "11px 28px", fontSize: 13, fontWeight: 700, marginTop: 4 }}>
-              Browse Events
-            </Link>
-          </div>
+          past.length > 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {past.map((t: any, i: number) => <PastTicketRow key={t.id} ticket={t} i={i} />)}
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 60, gap: 12, textAlign: "center" }}>
+              <Ticket size={36} style={{ color: "#E4DCF0" }} />
+              <p style={{ fontWeight: 700, fontSize: 15, color: "#0A0A0A", margin: 0 }}>No past tickets</p>
+              <p style={{ fontSize: 13, color: "#9E9E9E", margin: 0 }}>Events you've attended will appear here.</p>
+            </div>
+          )
         )}
       </div>
       <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }`}</style>
