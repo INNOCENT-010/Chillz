@@ -83,7 +83,7 @@ export default function BarLoungePage() {
 
   const { data:allVenues, isLoading } = useQuery({
     queryKey:["discover-venues",CATEGORY],
-    queryFn:async()=>{const{data}=await supabase.from("venues").select("*").eq("is_active",true).eq("category",CATEGORY).order("rating",{ascending:false}).limit(60);return(data||[])as any[];},
+    queryFn:async()=>{const{data}=await(supabase.from("venues")as any).select("*,google_data").eq("is_active",true).eq("category",CATEGORY).order("rating",{ascending:false}).limit(80);return(data||[])as any[];},
     staleTime:1000*60,
   });
 
@@ -110,13 +110,20 @@ export default function BarLoungePage() {
   const filtered=(allVenues||[]).filter((v:any)=>{
     if(showSaved){if(!(savedVenueIds||[]).includes(v.id))return false;}
     if(search.trim()){const q=search.toLowerCase();if(!v.name?.toLowerCase().includes(q)&&!v.address?.toLowerCase().includes(q))return false;}
-    if(quickTonight&&!v.bookings_enabled)return false;
+    if(quickTonight&&!v.opening_hours)return false;
     if(quickWeekend&&!isWeekend(now))return false;
     if(nearMe&&userLat&&userLng){if(!v.lat||!v.lng)return false;if(haversineKm(userLat,userLng,v.lat,v.lng)>15)return false;}
     const tags=[...(v.filters||[]),...(v.tags||[])].map((t:string)=>t.toLowerCase());
     if(appliedGenres.length>0&&!appliedGenres.some(g=>tags.includes(g.toLowerCase())))return false;
     if(appliedVibes.length>0&&!appliedVibes.some(vb=>tags.includes(vb.toLowerCase())))return false;
-    if(appliedSpend!==null){const sr=SPEND_RANGES[appliedSpend];const price=v.minimum_spend||0;if(sr.max===0&&price!==0)return false;if(sr.max>0&&(price<sr.min||price>sr.max))return false;}
+    if(appliedSpend!==null){
+      const sr=SPEND_RANGES[appliedSpend];
+      // Map Google price_level to naira estimate: 1=<10k, 2=10-50k, 3=50k+, 4=50k+
+      const googlePrice=v.google_data?.price_level?[0,5000,25000,75000,200000][v.google_data.price_level]:null;
+      const price=v.minimum_spend||googlePrice||0;
+      if(sr.max===0&&price!==0)return false;
+      if(sr.max>0&&(price<sr.min||price>sr.max))return false;
+    }
     return true;
   });
 

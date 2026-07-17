@@ -26,7 +26,14 @@ export function VenueDiscoverCard({
   const { user } = useAuthStore();
   const router = useRouter();
   const qc = useQueryClient();
+  // Price: vendor minimum spend → cheapest menu item → Google price level estimate
+  const googlePriceEstimate = venue.google_data?.price_level
+    ? [0, 5000, 25000, 75000, 200000][venue.google_data.price_level]
+    : null;
   const price = venue.minimum_spend || cheapestMenuPrice || null;
+  const googlePriceLabel = !price && venue.google_data?.price_level
+    ? "₦".repeat(venue.google_data.price_level)
+    : null;
 
   const { data: savedRecord } = useQuery({
     queryKey: ["saved-venue", venue.id, user?.id],
@@ -139,6 +146,11 @@ export function VenueDiscoverCard({
                 {tag}
               </span>
             ))}
+            {venue.source === "google" && (venue.filters || venue.tags || []).length === 0 && (
+              <span style={{ fontSize: 10, fontWeight: 600, color: "#4285F4", backgroundColor: "#EBF3FE", padding: "3px 9px", borderRadius: 999 }}>
+                📍 Google
+              </span>
+            )}
             {venue.review_count > 0 && (
               <span style={{ fontSize: 10, color: "#9E9E9E", marginLeft: "auto", alignSelf: "center" }}>
                 {venue.review_count} review{venue.review_count !== 1 ? "s" : ""}
@@ -150,24 +162,36 @@ export function VenueDiscoverCard({
               {venue.category?.replace(/-/g, " ")}
             </span>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
-              {price && (
+              {price ? (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
                   <span style={{ fontSize: 9, fontWeight: 600, color: "#9E9E9E", textTransform: "uppercase", letterSpacing: "0.06em", lineHeight: 1 }}>Starts from</span>
                   <span style={{ fontSize: 14, fontWeight: 900, color: accentColor, lineHeight: 1.2, fontFamily: "var(--font-display,Syne,sans-serif)" }}>
                     {formatCurrency(price)}
                   </span>
                 </div>
+              ) : googlePriceLabel ? (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                  <span style={{ fontSize: 9, fontWeight: 600, color: "#9E9E9E", textTransform: "uppercase", letterSpacing: "0.06em", lineHeight: 1 }}>Price range</span>
+                  <span style={{ fontSize: 16, fontWeight: 900, color: accentColor, lineHeight: 1.2, letterSpacing: 1 }}>
+                    {googlePriceLabel}
+                  </span>
+                </div>
+              ) : null}
+              {venue.bookings_enabled === false ? (
+                <button
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/venue/${venue.id}`); }}
+                  style={{ backgroundColor: "#F7F5FA", color: "#6B6B6B", border: "1.5px solid #E4DCF0", borderRadius: 10, padding: "7px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}
+                >
+                  View
+                </button>
+              ) : (
+                <button
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/venue/${venue.id}?book=true`); }}
+                  style={{ backgroundColor: accentColor, color: "#FFFFFF", border: "none", borderRadius: 10, padding: "7px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}
+                >
+                  Reserve
+                </button>
               )}
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  router.push(`/venue/${venue.id}?book=true`);
-                }}
-                style={{ backgroundColor: accentColor, color: "#FFFFFF", border: "none", borderRadius: 10, padding: "7px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}
-              >
-                Reserve
-              </button>
             </div>
           </div>
         </div>

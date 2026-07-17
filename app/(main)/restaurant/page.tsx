@@ -84,6 +84,7 @@ function RestaurantCard({ venue, savedIds, onToggleSave }: {
     setPressing(false);
   }, []);
 
+  const hasHours = venue.opening_hours && Object.keys(venue.opening_hours).length > 0;
   const { isOpen, label: openLabel } = getOpenStatusLabel(venue.opening_hours);
   const rating      = venue.rating       || 0;
   const reviewCount = venue.review_count || 0;
@@ -130,12 +131,14 @@ function RestaurantCard({ venue, savedIds, onToggleSave }: {
             <Heart size={15} style={{ color: isSaved ? "#EF4444" : "#9E9E9E", fill: isSaved ? "#EF4444" : "none" }} />
           </button>
 
-          {/* Open badge */}
-          <div style={{ position: "absolute", top: 10, right: 10 }}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: "#FFFFFF", backgroundColor: isOpen ? "rgba(0,200,83,0.85)" : "rgba(239,68,68,0.85)", padding: "3px 9px", borderRadius: 999 }}>
-              {isOpen ? "Open" : "Closed"}
-            </span>
-          </div>
+          {/* Open badge — only show if we have reliable hours data */}
+          {hasHours && (
+            <div style={{ position: "absolute", top: 10, right: 10 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "#FFFFFF", backgroundColor: isOpen ? "rgba(0,200,83,0.85)" : "rgba(239,68,68,0.85)", padding: "3px 9px", borderRadius: 999 }}>
+                {isOpen ? "Open" : "Closed"}
+              </span>
+            </div>
+          )}
 
           {venue.is_featured && (
             <div style={{ position: "absolute", bottom: 10, left: 10 }}>
@@ -174,12 +177,16 @@ function RestaurantCard({ venue, savedIds, onToggleSave }: {
               <Clock size={11} style={{ color: isOpen ? "#00C853" : "#EF4444", flexShrink: 0 }} />
               <span style={{ fontSize: 11, fontWeight: 600, color: isOpen ? "#00C853" : "#EF4444" }}>{openLabel}</span>
             </div>
-            {/* Min spend */}
-            {venue.minimum_spend > 0 && (
+            {/* Price indicator — vendor minimum spend or Google price level */}
+            {venue.minimum_spend > 0 ? (
               <span style={{ fontSize: 11, fontWeight: 600, color: ACCENT, backgroundColor: ACCENT_BG, padding: "2px 8px", borderRadius: 999 }}>
                 From {formatCurrency(venue.minimum_spend)}
               </span>
-            )}
+            ) : venue.google_data?.price_level ? (
+              <span style={{ fontSize: 11, fontWeight: 700, color: ACCENT, backgroundColor: ACCENT_BG, padding: "2px 8px", borderRadius: 999 }}>
+                {"₦".repeat(venue.google_data.price_level)}
+              </span>
+            ) : null}
           </div>
 
           {/* Tags */}
@@ -251,11 +258,11 @@ export default function RestaurantsPage() {
     queryKey: ["restaurants"],
     queryFn: async () => {
       const { data } = await (supabase.from("venues") as any)
-        .select("id,name,address,images,rating,review_count,filters,tags,category,opening_hours,lat,lng,is_featured,minimum_spend,vendor_id")
+        .select("id,name,address,images,rating,review_count,filters,tags,category,opening_hours,lat,lng,is_featured,minimum_spend,vendor_id,source,bookings_enabled,google_data")
         .eq("is_active", true)
-        .eq("category", "restaurant")
-        .order("is_featured", { ascending: false })
-        .order("rating",      { ascending: false });
+        .in("category", ["restaurant","cafe"])
+        .order("rating", { ascending: false })
+        .limit(100);
       return (data || []) as any[];
     },
     staleTime: 1000 * 60,

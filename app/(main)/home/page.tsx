@@ -440,32 +440,20 @@ export default function HomePage() {
         all:       [],
       };
       const cats = vibeCategories[vibe] || [];
+      const targetCats = timeSignal.period === "tonight"
+        ? ["club","bar-lounge","restaurant"]
+        : cats.length > 0 ? cats : null;
 
       let q = (supabase.from("venues") as any)
         .select("*")
         .eq("is_active", true)
-        .not("category","in",'("car_rental","flight")')
-        .order("bookings_count", { ascending:false })
-        .order("rating",         { ascending:false });
+        .not("category","in",'("car_rental","flight","hotel","apartment")')
+        .order("rating", { ascending: false });
 
-      if (timeSignal.period === "tonight") {
-        q = q.in("category", ["club","bar-lounge","restaurant"]);
-      } else if (cats.length > 0) {
-        q = q.in("category", cats);
-      }
+      if (targetCats) q = q.in("category", targetCats);
 
-      const { data } = await q.limit(10);
-
-      if (!data || data.length < 3) {
-        const { data: fb } = await (supabase.from("venues") as any)
-          .select("*")
-          .eq("is_active", true)
-          .not("category","in",'("car_rental","flight")')
-          .order("bookings_count", { ascending:false })
-          .limit(10);
-        return (fb || []) as any[];
-      }
-      return data as any[];
+      const { data } = await q.limit(12);
+      return (data || []) as any[];
     },
     staleTime: 1000 * 60 * 2,
     enabled:   gateChecked,
@@ -489,7 +477,7 @@ export default function HomePage() {
     enabled:   gateChecked,
   });
 
-  // ── Q5: Most booked venues ────────────────────────────────────────────
+  // ── Q5: Top rated venues (Google + vendor, deduplicated from time-aware) ──
   const { data: topVenues, isLoading: topLoading } = useQuery({
     queryKey: ["top-venues"],
     queryFn: async () => {
@@ -497,9 +485,10 @@ export default function HomePage() {
         .select("*")
         .eq("is_active", true)
         .not("category","in",'("hotel","apartment","car_rental","flight")')
-        .order("bookings_count", { ascending:false })
-        .order("rating",         { ascending:false })
-        .limit(10);
+        .gte("rating", 4)
+        .order("review_count", { ascending: false })
+        .order("rating",       { ascending: false })
+        .limit(12);
       return (data || []) as any[];
     },
     staleTime: 1000 * 60 * 5,
@@ -537,6 +526,10 @@ export default function HomePage() {
     staleTime: 1000 * 60 * 5,
     enabled:   gateChecked,
   });
+
+  // Deduplicate top venues from time-aware venues
+  const timeAwareIds = new Set((timeAwareVenues || []).map((v: any) => v.id));
+  const dedupedTopVenues = (topVenues || []).filter((v: any) => !timeAwareIds.has(v.id));
 
   if (!gateChecked) return null;
 
@@ -819,7 +812,7 @@ export default function HomePage() {
           subtitle="Where people keep coming back"
         />
         <ScrollRow loading={topLoading} skeletonCount={3} skeletonW={220} skeletonH={220}>
-          {(topVenues || []).map((venue: any, i: number) => (
+          {dedupedTopVenues.map((venue: any, i: number) => (
             <motion.div
               key={venue.id}
               initial={{ opacity:0, x:16 }}

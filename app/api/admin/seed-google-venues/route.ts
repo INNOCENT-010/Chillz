@@ -11,23 +11,45 @@ const supabaseAdmin = createClient(
 const GOOGLE_API_KEY = process.env.GOOGLE_PLACES_API_KEY!;
 
 const SEARCH_QUERIES = [
-  { query: "bars in Lagos Nigeria",                    category: "bar-lounge" },
-  { query: "nightclubs in Lagos Nigeria",              category: "club"       },
-  { query: "restaurants in Lagos Nigeria",             category: "restaurant" },
-  { query: "bars in Victoria Island Lagos",            category: "bar-lounge" },
-  { query: "clubs in Lekki Lagos",                     category: "club"       },
-  { query: "restaurants in Lekki Lagos",               category: "restaurant" },
+  // Lagos bars & lounges
+  { query: "bars in Victoria Island Lagos Nigeria",    category: "bar-lounge" },
+  { query: "bars in Lekki Lagos Nigeria",              category: "bar-lounge" },
+  { query: "rooftop bars Lagos Nigeria",               category: "bar-lounge" },
+  { query: "lounges in Ikeja Lagos Nigeria",           category: "bar-lounge" },
+  { query: "sports bars Lagos Nigeria",                category: "bar-lounge" },
+  // Lagos clubs
+  { query: "nightclubs in Victoria Island Lagos",      category: "club"       },
+  { query: "nightclubs in Lekki Lagos Nigeria",        category: "club"       },
+  { query: "clubs in Ikeja Lagos Nigeria",             category: "club"       },
+  // Lagos restaurants
+  { query: "restaurants in Victoria Island Lagos",     category: "restaurant" },
+  { query: "restaurants in Lekki Phase 1 Lagos",       category: "restaurant" },
+  { query: "restaurants in Ikoyi Lagos Nigeria",       category: "restaurant" },
+  { query: "fine dining restaurants Lagos Nigeria",    category: "restaurant" },
+  { query: "Nigerian restaurants Lagos",               category: "restaurant" },
+  // Port Harcourt
   { query: "bars in Port Harcourt Nigeria",            category: "bar-lounge" },
-  { query: "clubs in Port Harcourt Nigeria",           category: "club"       },
-  { query: "restaurants in Port Harcourt",             category: "restaurant" },
-  { query: "lounges in Abuja Nigeria",                 category: "bar-lounge" },
-  { query: "hotels in Lagos Nigeria",                  category: "hotel"      },
-  { query: "hotels in Victoria Island Lagos",          category: "hotel"      },
-  { query: "hotels in Lekki Lagos",                    category: "hotel"      },
+  { query: "lounges in Port Harcourt Nigeria",         category: "bar-lounge" },
+  { query: "nightclubs Port Harcourt Nigeria",         category: "club"       },
+  { query: "restaurants in Port Harcourt Nigeria",     category: "restaurant" },
+  { query: "restaurants in GRA Port Harcourt",         category: "restaurant" },
+  { query: "bars in GRA Port Harcourt Nigeria",        category: "bar-lounge" },
+  // Abuja
+  { query: "bars in Abuja Nigeria",                    category: "bar-lounge" },
+  { query: "lounges in Wuse Abuja Nigeria",            category: "bar-lounge" },
+  { query: "clubs in Abuja Nigeria",                   category: "club"       },
+  { query: "restaurants in Wuse 2 Abuja Nigeria",      category: "restaurant" },
+  { query: "restaurants in Maitama Abuja Nigeria",     category: "restaurant" },
+  { query: "restaurants in Garki Abuja Nigeria",       category: "restaurant" },
+  // Hotels
+  { query: "hotels in Victoria Island Lagos Nigeria",  category: "hotel"      },
+  { query: "hotels in Lekki Lagos Nigeria",            category: "hotel"      },
+  { query: "hotels in Ikeja Lagos Nigeria",            category: "hotel"      },
   { query: "hotels in Port Harcourt Nigeria",          category: "hotel"      },
+  { query: "hotels in GRA Port Harcourt Nigeria",      category: "hotel"      },
   { query: "hotels in Abuja Nigeria",                  category: "hotel"      },
-  { query: "luxury hotels Lagos",                      category: "hotel"      },
-  { query: "boutique hotels Lagos Nigeria",            category: "hotel"      },
+  { query: "hotels in Maitama Abuja Nigeria",          category: "hotel"      },
+  { query: "luxury hotels Lagos Nigeria",              category: "hotel"      },
 ];
 
 async function fetchPlaceDetails(placeId: string) {

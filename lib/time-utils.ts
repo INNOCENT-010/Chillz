@@ -37,8 +37,10 @@ function parseTime(t: string): number {
 export function isOpenNowWAT(openingHours: Record<string, any> | null | undefined): boolean {
   if (!openingHours) return true; // no hours set — assume open
 
-  const todayKey   = getWATDayName();
-  const todayHours = openingHours[todayKey];
+  const todayKey = getWATDayName(); // lowercase e.g. "thursday"
+  // Support both lowercase (vendor format) and title case (Google format)
+  const todayHours = openingHours[todayKey]
+    || openingHours[todayKey.charAt(0).toUpperCase() + todayKey.slice(1)];
 
   if (!todayHours)          return false; // no entry for today = closed
   if (todayHours.closed)    return false;
@@ -77,8 +79,9 @@ export function getOpenStatusLabel(openingHours: Record<string, any> | null | un
 } {
   if (!openingHours) return { isOpen: true, label: "Open" };
 
-  const todayKey   = getWATDayName();
-  const todayHours = openingHours[todayKey];
+  const todayKey = getWATDayName();
+  const todayHours = openingHours[todayKey]
+    || openingHours[todayKey.charAt(0).toUpperCase() + todayKey.slice(1)];
 
   if (!todayHours || todayHours.closed) return { isOpen: false, label: "Closed today" };
 
