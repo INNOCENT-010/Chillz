@@ -65,6 +65,7 @@ export default function RegisterPage() {
         password: userForm.password,
         options: {
           data: { full_name: userForm.full_name.trim(), account_type: "user" },
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       });
       if (signUpError) throw signUpError;

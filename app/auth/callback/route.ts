@@ -35,6 +35,9 @@ export async function GET(req: NextRequest) {
       type: type as any,
     });
     if (!error) {
+      if (type === "signup") {
+        return NextResponse.redirect(`${origin}/login?confirmed=true`);
+      }
       return NextResponse.redirect(`${origin}/home`);
     }
     return NextResponse.redirect(`${origin}/login?error=confirmation_failed`);
