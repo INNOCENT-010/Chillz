@@ -421,7 +421,7 @@ export default function TicketDetailPage() {
 
             {event?.dress_code && (
               <div style={{ backgroundColor: "#F7F5FA", borderRadius: 16, padding: "13px 14px" }}>
-                <p style={{ fontSize: 10, fontWeight: 700, color: "#9E9E9E", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 2px" }}>Dress Code</p>
+                <p style={{ fontSize: 10, fontWeight: 700, color: "#9E9E9E", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 2px" }}>Dress C</p>
                 <p style={{ fontSize: 13, fontWeight: 600, color: "#0A0A0A", margin: 0 }}>{event.dress_code}</p>
               </div>
             )}

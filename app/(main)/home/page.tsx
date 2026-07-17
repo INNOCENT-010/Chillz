@@ -630,8 +630,8 @@ export default function HomePage() {
             lineHeight:1.2, margin:0,
             fontFamily:"var(--font-display,Syne,sans-serif)",
           }}>
-            What are you<br />
-            <span style={{ color:"#5B0EA6" }}>exploring today?</span>
+            Where are you<br />
+            <span style={{ color:"#5B0EA6" }}>Chilling today?</span>
           </h1>
         </motion.div>
       </div>

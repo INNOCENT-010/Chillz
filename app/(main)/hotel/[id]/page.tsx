@@ -752,7 +752,13 @@ export default function HotelDetailPage() {
                 : "Contact for rates"}
             </p>
           </div>
-          {isVendorUser ? (
+          {venue.bookings_enabled === false ? (
+            <div style={{ padding:"10px 20px", borderRadius:12, backgroundColor:"#FEF2F2", border:"1.5px solid #FECACA", textAlign:"center" }}>
+              <p style={{ color:"#EF4444", fontSize:11, fontWeight:700, margin:0 }}>
+                ⚠ Direct booking unavailable — visit hotel directly
+              </p>
+            </div>
+          ) : isVendorUser ? (
             <div style={{ backgroundColor:"#F7F5FA", borderRadius:14, padding:"10px 18px" }}>
               <p style={{ fontSize:12, color:"#9E9E9E", margin:0 }}>Vendor account</p>
             </div>
@@ -907,58 +913,6 @@ export default function HotelDetailPage() {
                     <textarea placeholder="Early check-in, high floor, dietary requirements..." value={specialRequests}
                       onChange={e => setSpecialRequests(e.target.value)} rows={2}
                       style={{ width:"100%", backgroundColor:"#F7F5FA", border:"1.5px solid #E4DCF0", borderRadius:14, padding:"12px 14px", fontSize:14, color:"#0A0A0A", outline:"none", fontFamily:"inherit", resize:"none", lineHeight:1.5, boxSizing:"border-box" }} />
-                  </div>
-
-                  {/* WhatsApp */}
-                  <div>
-                    <p style={{ fontSize:11, fontWeight:700, color:"#6B6B6B", textTransform:"uppercase", letterSpacing:"0.06em", margin:"0 0 6px" }}>
-                      WhatsApp Number <span style={{ color:"#EF4444" }}>*</span>
-                    </p>
-                    <div style={{ display:"flex", alignItems:"center", gap:10, backgroundColor:"#F7F5FA", border:`1.5px solid ${whatsappErr ? "#EF4444" : whatsappNumber && whatsappNumber.replace(/\D/g,"").length >= 10 ? "#00C853" : "#E4DCF0"}`, borderRadius:14, padding:"13px 14px" }}>
-                      <span style={{ fontSize:18, flexShrink:0 }}>💬</span>
-                      <input
-                        type="tel"
-                        placeholder="08012345678 or 2348012345678"
-                        value={whatsappNumber}
-                        onChange={e => { setWhatsappNumber(e.target.value); setWhatsappErr(""); }}
-                        onBlur={() => {
-                          const digits = whatsappNumber.replace(/\D/g,"");
-                          if (whatsappNumber.trim() && digits.length < 10) setWhatsappErr("Enter a valid WhatsApp number");
-                        }}
-                        style={{ flex:1, background:"transparent", border:"none", outline:"none", fontSize:14, color:"#0A0A0A", fontFamily:"inherit" }}
-                      />
-                      {whatsappNumber && whatsappNumber.replace(/\D/g,"").length >= 10 && (
-                        <CheckCircle size={16} style={{ color:"#00C853", flexShrink:0 }} />
-                      )}
-                    </div>
-                    {whatsappErr && <p style={{ fontSize:11, color:"#EF4444", margin:"4px 0 0", fontWeight:600 }}>{whatsappErr}</p>}
-                    <p style={{ fontSize:11, color:"#9E9E9E", margin:"5px 0 0" }}>The hotel will contact you on this number</p>
-                  </div>
-
-                  {/* WhatsApp */}
-                  <div>
-                    <p style={{ fontSize:11, fontWeight:700, color:"#6B6B6B", textTransform:"uppercase", letterSpacing:"0.06em", margin:"0 0 6px" }}>
-                      WhatsApp Number <span style={{ color:"#EF4444" }}>*</span>
-                    </p>
-                    <div style={{ display:"flex", alignItems:"center", gap:10, backgroundColor:"#F7F5FA", border:`1.5px solid ${whatsappErr ? "#EF4444" : whatsappNumber && whatsappNumber.replace(/\D/g,"").length >= 10 ? "#00C853" : "#E4DCF0"}`, borderRadius:14, padding:"13px 14px" }}>
-                      <span style={{ fontSize:18, flexShrink:0 }}>💬</span>
-                      <input
-                        type="tel"
-                        placeholder="08012345678 or 2348012345678"
-                        value={whatsappNumber}
-                        onChange={e => { setWhatsappNumber(e.target.value); setWhatsappErr(""); }}
-                        onBlur={() => {
-                          const digits = whatsappNumber.replace(/\D/g,"");
-                          if (whatsappNumber.trim() && digits.length < 10) setWhatsappErr("Enter a valid WhatsApp number");
-                        }}
-                        style={{ flex:1, background:"transparent", border:"none", outline:"none", fontSize:14, color:"#0A0A0A", fontFamily:"inherit" }}
-                      />
-                      {whatsappNumber && whatsappNumber.replace(/\D/g,"").length >= 10 && (
-                        <CheckCircle size={16} style={{ color:"#00C853", flexShrink:0 }} />
-                      )}
-                    </div>
-                    {whatsappErr && <p style={{ fontSize:11, color:"#EF4444", margin:"4px 0 0", fontWeight:600 }}>{whatsappErr}</p>}
-                    <p style={{ fontSize:11, color:"#9E9E9E", margin:"5px 0 0" }}>The hotel will contact you on this number</p>
                   </div>
 
                   {/* WhatsApp */}

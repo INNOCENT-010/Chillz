@@ -127,8 +127,6 @@ export async function POST(req: NextRequest) {
 </html>`,
           }),
         });
-        const emailData = await emailRes.json();
-        console.log("WALLET EMAIL RESULT:", emailRes.status, emailData);
       }
     } catch (emailErr) {
       console.error("Wallet funded email failed:", emailErr);

@@ -694,6 +694,39 @@ export default function VenueDetailPage() {
         )}
 
         {/* Feature tags */}
+        {venue.source === "google" && venue.google_data && (
+          <div style={{ padding: "0 16px 14px" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {venue.google_data.price_level && (
+                <div style={{ backgroundColor: "#FFF8E1", borderRadius: 10, padding: "7px 12px", border: "1px solid #FDE68A" }}>
+                  <span style={{ fontSize: 12, color: "#D97706", fontWeight: 700 }}>{"₦".repeat(venue.google_data.price_level)}</span>
+                </div>
+              )}
+              {venue.google_data.serves_cocktails && <div style={{ backgroundColor: "#F7F5FA", borderRadius: 10, padding: "7px 12px", border: "1px solid #F2EEF9" }}><span style={{ fontSize: 12 }}>🍸 Cocktails</span></div>}
+              {venue.google_data.serves_beer && <div style={{ backgroundColor: "#F7F5FA", borderRadius: 10, padding: "7px 12px", border: "1px solid #F2EEF9" }}><span style={{ fontSize: 12 }}>🍺 Beer</span></div>}
+              {venue.google_data.serves_wine && <div style={{ backgroundColor: "#F7F5FA", borderRadius: 10, padding: "7px 12px", border: "1px solid #F2EEF9" }}><span style={{ fontSize: 12 }}>🍷 Wine</span></div>}
+              {venue.google_data.dine_in && <div style={{ backgroundColor: "#F7F5FA", borderRadius: 10, padding: "7px 12px", border: "1px solid #F2EEF9" }}><span style={{ fontSize: 12 }}>🍽️ Dine In</span></div>}
+              {venue.google_data.delivery && <div style={{ backgroundColor: "#F7F5FA", borderRadius: 10, padding: "7px 12px", border: "1px solid #F2EEF9" }}><span style={{ fontSize: 12 }}>🛵 Delivery</span></div>}
+              {venue.google_data.serves_cocktails && <div style={{ backgroundColor: "#F7F5FA", borderRadius: 10, padding: "7px 12px", border: "1px solid #F2EEF9" }}><span style={{ fontSize: 12 }}>🍸 Cocktails</span></div>}
+              {venue.google_data.serves_beer && <div style={{ backgroundColor: "#F7F5FA", borderRadius: 10, padding: "7px 12px", border: "1px solid #F2EEF9" }}><span style={{ fontSize: 12 }}>🍺 Beer</span></div>}
+              {venue.google_data.serves_wine && <div style={{ backgroundColor: "#F7F5FA", borderRadius: 10, padding: "7px 12px", border: "1px solid #F2EEF9" }}><span style={{ fontSize: 12 }}>🍷 Wine</span></div>}
+              {venue.google_data.dine_in && <div style={{ backgroundColor: "#F7F5FA", borderRadius: 10, padding: "7px 12px", border: "1px solid #F2EEF9" }}><span style={{ fontSize: 12 }}>🍽️ Dine In</span></div>}
+              {venue.google_data.delivery && <div style={{ backgroundColor: "#F7F5FA", borderRadius: 10, padding: "7px 12px", border: "1px solid #F2EEF9" }}><span style={{ fontSize: 12 }}>🛵 Delivery</span></div>}
+              {venue.google_data.wheelchair_accessible && <div style={{ backgroundColor: "#F7F5FA", borderRadius: 10, padding: "7px 12px", border: "1px solid #F2EEF9" }}><span style={{ fontSize: 12 }}>♿ Accessible</span></div>}
+              {venue.google_data.editorial_summary && (
+                <div style={{ width: "100%", backgroundColor: "#EDE0F7", borderRadius: 10, padding: "10px 12px", marginTop: 4 }}>
+                  <p style={{ fontSize: 12, color: "#5B0EA6", margin: 0, lineHeight: 1.5, fontStyle: "italic" }}>"{venue.google_data.editorial_summary}"</p>
+                </div>
+              )}
+              {venue.google_data.editorial_summary && (
+                <div style={{ width: "100%", backgroundColor: "#EDE0F7", borderRadius: 10, padding: "10px 12px", marginTop: 4 }}>
+                  <p style={{ fontSize: 12, color: "#5B0EA6", margin: 0, lineHeight: 1.5, fontStyle: "italic" }}>"{venue.google_data.editorial_summary}"</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {venueTags.length > 0 && (
           <div style={{ padding: "0 16px 14px" }}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -975,6 +1008,31 @@ export default function VenueDetailPage() {
                               <p style={{ fontSize: 11, color: "#6B6B6B", margin: 0 }}>{review.vendor_reply}</p>
                             </div>
                           )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : venue.source === "google" && venue.google_data?.reviews?.length > 0 ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      <p style={{ fontSize: 11, color: "#9E9E9E", margin: "0 0 4px", fontStyle: "italic" }}>Reviews from Google</p>
+                      {venue.google_data.reviews.map((review: any, i: number) => (
+                        <div key={i} style={{ backgroundColor: "#F7F5FA", borderRadius: 14, padding: "12px 14px" }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <div style={{ width: 30, height: 30, borderRadius: "50%", backgroundColor: "#EDE0F7", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
+                                {review.avatar
+                                  ? <img src={review.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                  : <span style={{ fontSize: 11, fontWeight: 700, color: "#5B0EA6" }}>{review.author?.[0]}</span>}
+                              </div>
+                              <span style={{ fontWeight: 600, fontSize: 12, color: "#0A0A0A" }}>{review.author}</span>
+                            </div>
+                            <div style={{ display: "flex", gap: 2 }}>
+                              {[1,2,3,4,5].map(s => (
+                                <Star key={s} size={11} style={{ color: s <= review.rating ? "#FBBF24" : "#E4DCF0", fill: s <= review.rating ? "#FBBF24" : "#E4DCF0" }} />
+                              ))}
+                            </div>
+                          </div>
+                          {review.text && <p style={{ fontSize: 12, color: "#6B6B6B", lineHeight: 1.5, margin: "0 0 4px", fontStyle: "italic" }}>"{review.text}"</p>}
+                          <p style={{ fontSize: 10, color: "#C4BAD8", margin: 0 }}>{review.time}</p>
                         </div>
                       ))}
                     </div>
@@ -1307,8 +1365,12 @@ export default function VenueDetailPage() {
       {/* ── Book CTA — your original, untouched ── */}
       <div style={{ position: "fixed", bottom: 72, left: 0, right: 0, padding: "10px 16px", backgroundColor: "rgba(255,255,255,0.98)", backdropFilter: "blur(10px)", borderTop: "1px solid #F2EEF9", maxWidth: 480, margin: "0 auto", zIndex: 40 }}>
         {venue.bookings_enabled === false ? (
-          <div style={{ width: "100%", padding: "14px 0", borderRadius: 16, backgroundColor: "#F2EEF9", textAlign: "center" }}>
-            <p style={{ color: "#9E9E9E", fontSize: 14, fontWeight: 600, margin: 0 }}>Bookings not available</p>
+          <div style={{ width: "100%", padding: "10px 0", borderRadius: 12, backgroundColor: "#FEF2F2", textAlign: "center" }}>
+            <p style={{ color: "#EF4444", fontSize: 11, fontWeight: 700, margin: 0 }}>
+              {venue.source === "google"
+                ? "⚠ Direct booking unavailable — visit venue directly"
+                : "Bookings not available"}
+            </p>
           </div>
         ) : isApprovedVendor ? (
           <div style={{ width: "100%", padding: "14px 0", borderRadius: 16, backgroundColor: "#F7F5FA", border: "1.5px solid #E4DCF0", textAlign: "center" }}>
