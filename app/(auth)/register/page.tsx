@@ -68,14 +68,8 @@ export default function RegisterPage() {
         },
       });
       if (signUpError) throw signUpError;
-      if (data.user) {
-        await (supabase.from("users") as any).upsert({
-          id: data.user.id,
-          full_name: userForm.full_name.trim(),
-          email: userForm.email.trim(),
-        });
-      }
-      router.push("/");
+      // Show email confirmation message instead of redirecting
+      router.push("/register/confirm-email");
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -268,9 +262,9 @@ export default function RegisterPage() {
                 </div>
                 <p style={{ fontSize: 13, color: "#6B6B6B", margin: 0, lineHeight: 1.6 }}>
                   I have read and agree to the Chillz{" "}
-                  <a href="/terms" onClick={(e) => e.stopPropagation()} style={{ color: "#5B0EA6", fontWeight: 700, textDecoration: "none" }}>Terms of Service</a>
+                  <a href="/terms" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: "#5B0EA6", fontWeight: 700, textDecoration: "none" }}>Terms of Service</a>
                   {" "}and{" "}
-                  <a href="/privacy" onClick={(e) => e.stopPropagation()} style={{ color: "#5B0EA6", fontWeight: 700, textDecoration: "none" }}>Privacy Policy</a>.
+                  <a href="/privacy" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: "#5B0EA6", fontWeight: 700, textDecoration: "none" }}>Privacy Policy</a>.
                   By creating an account I consent to the use of cookies and data processing as described therein.
                 </p>
               </button>
@@ -490,9 +484,9 @@ export default function RegisterPage() {
                 </div>
                 <p style={{ fontSize: 13, color: "#6B6B6B", margin: 0, lineHeight: 1.6 }}>
                   I have read and agree to the Chillz{" "}
-                  <a href="/terms" onClick={(e) => e.stopPropagation()} style={{ color: "#5B0EA6", fontWeight: 700, textDecoration: "none" }}>Terms of Service</a>
+                  <a href="/terms" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: "#5B0EA6", fontWeight: 700, textDecoration: "none" }}>Terms of Service</a>
                   {" "}and{" "}
-                  <a href="/privacy" onClick={(e) => e.stopPropagation()} style={{ color: "#5B0EA6", fontWeight: 700, textDecoration: "none" }}>Privacy Policy</a>.
+                  <a href="/privacy" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: "#5B0EA6", fontWeight: 700, textDecoration: "none" }}>Privacy Policy</a>.
                   By registering as a vendor I consent to data processing and platform terms.
                 </p>
               </button>

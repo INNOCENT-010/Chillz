@@ -316,7 +316,7 @@ export default function HomePage() {
   const router   = useRouter();
 
   const [userCity,      setUserCity]      = useState("Lagos");
-  const [gateChecked,   setGateChecked]   = useState(false);
+  const [gateChecked,   setGateChecked]   = useState(true);
   const [confirmDisplay,setConfirmDisplay] = useState<string | null>(null);
   const [vibe,          setVibe]          = useState<string>("all");
 
