@@ -1,9 +1,13 @@
 "use client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Mail } from "lucide-react";
 
 export default function ConfirmEmailPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const next = searchParams.get("next") || "/home";
+  const isVendor = next.includes("vendor");
+
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#F7F5FA", maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 24px", textAlign: "center" }}>
       <div style={{ width: 80, height: 80, borderRadius: "50%", backgroundColor: "#EDE0F7", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 24 }}>
@@ -16,11 +20,13 @@ export default function ConfirmEmailPage() {
         We sent a confirmation link to your email address.
       </p>
       <p style={{ fontSize: 13, color: "#9E9E9E", margin: "0 0 32px", lineHeight: 1.6 }}>
-        Click the link in the email to activate your account then sign in.
+        {isVendor
+          ? "Click the link to confirm your account — you'll then be taken to complete your vendor registration."
+          : "Click the link in the email to activate your account then sign in."}
       </p>
-      <button onClick={() => router.push("/login")}
+      <button onClick={() => router.push("/login?redirect=" + encodeURIComponent(next))}
         style={{ width: "100%", padding: "16px 0", borderRadius: 16, border: "none", background: "linear-gradient(135deg,#5B0EA6,#7B2FBE)", color: "#FFFFFF", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
-        Go to Sign In
+        {isVendor ? "I've confirmed — Go to Sign In" : "Go to Sign In"}
       </button>
     </div>
   );

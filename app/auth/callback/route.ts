@@ -36,7 +36,8 @@ export async function GET(req: NextRequest) {
     });
     if (!error) {
       if (type === "signup") {
-        return NextResponse.redirect(`${origin}/login?confirmed=true`);
+        const redirectNext = next && next !== "/" ? next : "/home";
+        return NextResponse.redirect(`${origin}/login?confirmed=true&next=${encodeURIComponent(redirectNext)}`);
       }
       return NextResponse.redirect(`${origin}/home`);
     }

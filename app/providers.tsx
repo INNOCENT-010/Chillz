@@ -26,14 +26,39 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const initialised = useRef(false);
 
   async function syncUser(userId: string) {
-    const { data } = await supabase
+    // Try to get existing user row
+    const { data, error } = await supabase
       .from("users")
       .select("*")
       .eq("id", userId)
-      .single();
+      .maybeSingle();
+
     if (data) {
       setUser(data as any);
+      return;
     }
+
+    // Row doesn't exist — get auth user details and create it
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return;
+
+    const fullName =
+      authUser.user_metadata?.full_name ||
+      authUser.user_metadata?.name ||
+      authUser.email?.split("@")[0] ||
+      "User";
+
+    const { data: newUser } = await (supabase.from("users") as any)
+      .upsert({
+        id: userId,
+        email: authUser.email,
+        full_name: fullName,
+        avatar_url: authUser.user_metadata?.avatar_url || null,
+      }, { onConflict: "id" })
+      .select()
+      .single();
+
+    if (newUser) setUser(newUser as any);
   }
 
   useEffect(() => {

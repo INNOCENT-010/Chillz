@@ -69,8 +69,11 @@ export default function RegisterPage() {
         },
       });
       if (signUpError) throw signUpError;
-      // Show email confirmation message instead of redirecting
-      router.push("/register/confirm-email");
+      if (accountType === "vendor") {
+        router.push("/register/confirm-email?next=/vendor/register");
+      } else {
+        router.push("/register/confirm-email");
+      }
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -200,7 +203,7 @@ export default function RegisterPage() {
               </button>
 
               <button
-                onClick={() => { setAccountType("vendor"); setStep("vendor_details"); }}
+                onClick={() => { setAccountType("vendor"); setStep("user_form"); }}
                 style={{ width: "100%", backgroundColor: "#FFFFFF", borderRadius: 20, padding: "20px", border: "2px solid #E4DCF0", cursor: "pointer", display: "flex", alignItems: "center", gap: 16, textAlign: "left", boxShadow: "0 2px 12px rgba(91,14,166,0.06)" }}>
                 <div style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: "#E0F7EA", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <Building2 size={24} style={{ color: "#00C853" }} />

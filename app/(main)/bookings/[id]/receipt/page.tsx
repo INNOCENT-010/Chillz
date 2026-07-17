@@ -216,6 +216,59 @@ export default function BookingReceiptPage() {
       qc.invalidateQueries({ queryKey: ["vendor-balance"] });
       qc.invalidateQueries({ queryKey: ["vendor-earnings"] });
       qc.invalidateQueries({ queryKey: ["booking-reserved-balance", id] });
+
+      // Send booking payment confirmation email
+      if (user?.email && booking && receipt) {
+        const billAmount = receipt.total || booking.reserved_amount;
+        const firstName = user.full_name?.split(" ")[0] || "there";
+        const venueName = booking.venues?.name || "the venue";
+        fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-email`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({
+            to: user.email,
+            subject: `✅ Payment Confirmed — ${venueName}`,
+            html: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#F7F5FA;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <div style="max-width:480px;margin:0 auto;padding:24px 16px;">
+    <div style="background:linear-gradient(135deg,#3D0066,#5B0EA6);border-radius:20px;padding:32px 24px;text-align:center;margin-bottom:16px;">
+      <span style="font-size:40px;">🎉</span>
+      <h1 style="color:#FFFFFF;font-size:22px;font-weight:900;margin:12px 0 6px;">Payment Confirmed</h1>
+      <p style="color:rgba(255,255,255,0.7);font-size:13px;margin:0;">${venueName}</p>
+    </div>
+    <div style="background:#FFFFFF;border-radius:16px;padding:24px;margin-bottom:16px;box-shadow:0 2px 12px rgba(91,14,166,0.08);">
+      <p style="font-size:15px;color:#0A0A0A;margin:0 0 12px;">Hey ${firstName} 👋</p>
+      <p style="font-size:14px;color:#6B6B6B;line-height:1.7;margin:0 0 16px;">
+        Your payment of <strong style="color:#5B0EA6;">₦${billAmount.toLocaleString()}</strong> to <strong>${venueName}</strong> has been confirmed and released.
+      </p>
+      <div style="background:#F7F5FA;border-radius:12px;padding:16px;border-left:4px solid #5B0EA6;">
+        <p style="font-size:12px;font-weight:700;color:#9E9E9E;text-transform:uppercase;margin:0 0 4px;">Amount Paid</p>
+        <p style="font-size:24px;font-weight:900;color:#5B0EA6;margin:0;">₦${billAmount.toLocaleString()}</p>
+      </div>
+    </div>
+    <div style="text-align:center;margin-bottom:16px;">
+      <a href="https://mychillz.app/bookings" style="display:inline-block;background:linear-gradient(135deg,#5B0EA6,#7B2FBE);color:#FFFFFF;text-decoration:none;padding:14px 32px;border-radius:14px;font-size:15px;font-weight:700;">
+        View My Bookings
+      </a>
+    </div>
+    <p style="text-align:center;font-size:12px;color:#9E9E9E;margin:0;">
+      Thank you for using Chillz.<br/>
+      <a href="https://mychillz.app" style="color:#5B0EA6;">mychillz.app</a>
+    </p>
+  </div>
+</body>
+</html>
+            `,
+          }),
+        }).catch(() => {}); // fire and forget
+      }
+
       router.push(`/review/${id}`);
     },
     onError: (e: any) => console.error("Confirm failed:", e.message || e),
