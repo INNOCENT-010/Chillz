@@ -133,6 +133,25 @@ function buildGoogleData(details: any) {
   };
 }
 
+// Build filterable tags from Google data so genre/vibe filters work
+function buildGoogleFilters(details: any): string[] {
+  const tags: string[] = [];
+  if (details.servesCocktails) tags.push("Cocktails");
+  if (details.servesBeer)      tags.push("Beer");
+  if (details.servesWine)      tags.push("Wine");
+  if (details.dineIn)          tags.push("Dine In");
+  if (details.takeout)         tags.push("Takeout");
+  if (details.delivery)        tags.push("Delivery");
+  if (details.reservable)      tags.push("Reservations");
+  if (details.accessibilityOptions?.wheelchairAccessibleEntrance) tags.push("Accessible");
+  // Map Google types to Chillz vibe tags
+  const types = (details.types || []) as string[];
+  if (types.includes("night_club"))  tags.push("Live DJ");
+  if (types.includes("bar"))         tags.push("Cocktails");
+  if (types.includes("restaurant"))  tags.push("Dine In");
+  return [...new Set(tags)]; // deduplicate
+}
+
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   const adminSecret = process.env.ADMIN_SECRET || "chillz-admin-2024";
@@ -192,6 +211,7 @@ export async function POST(req: NextRequest) {
             review_count: details.userRatingCount || 0,
             phone:        details.nationalPhoneNumber || null,
             website:      details.websiteUri || null,
+            filters:      buildGoogleFilters(details),
             ...(images.length > 0 ? { images } : {}),
             google_data:  buildGoogleData(details),
           })
@@ -278,6 +298,7 @@ export async function POST(req: NextRequest) {
               phone:            details.nationalPhoneNumber || null,
               website:          details.websiteUri || null,
               opening_hours:    Object.keys(openingHours).length > 0 ? openingHours : null,
+              filters:          buildGoogleFilters(details),
               is_active:        true,
               bookings_enabled: false,
               source:           "google",

@@ -537,6 +537,30 @@ export default function HotelDetailPage() {
           </>
         )}
 
+        {/* Google hotel amenities from google_data */}
+        {venue.google_data && (venue.google_data.serves_cocktails || venue.google_data.serves_beer || venue.google_data.serves_wine || venue.google_data.dine_in || venue.google_data.delivery || venue.google_data.takeout || venue.google_data.reservable || venue.google_data.wheelchair_accessible || venue.google_data.price_level) && (
+          <>
+            <div style={{ height:1, backgroundColor:"#F2EEF9", margin:"0 0 18px" }} />
+            <h3 style={{ fontSize:15, fontWeight:800, color:"#0A0A0A", margin:"0 0 12px", fontFamily:"var(--font-display,Syne,sans-serif)" }}>Amenities & Features</h3>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:18 }}>
+              {venue.google_data.price_level && (
+                <div style={{ display:"flex", alignItems:"center", gap:8, backgroundColor:"#FFF8E1", borderRadius:12, padding:"10px 12px", gridColumn:"1/-1" }}>
+                  <span style={{ fontSize:16 }}>💰</span>
+                  <span style={{ fontSize:12, color:"#D97706", fontWeight:700 }}>Price range: {"₦".repeat(venue.google_data.price_level)}</span>
+                </div>
+              )}
+              {venue.google_data.dine_in          && <div style={{ display:"flex", alignItems:"center", gap:8, backgroundColor:"#F7F5FA", borderRadius:12, padding:"10px 12px" }}><span style={{ fontSize:14 }}>🍽️</span><span style={{ fontSize:12, color:"#0A0A0A", fontWeight:500 }}>Dine In</span></div>}
+              {venue.google_data.serves_cocktails && <div style={{ display:"flex", alignItems:"center", gap:8, backgroundColor:"#F7F5FA", borderRadius:12, padding:"10px 12px" }}><span style={{ fontSize:14 }}>🍸</span><span style={{ fontSize:12, color:"#0A0A0A", fontWeight:500 }}>Cocktails</span></div>}
+              {venue.google_data.serves_beer      && <div style={{ display:"flex", alignItems:"center", gap:8, backgroundColor:"#F7F5FA", borderRadius:12, padding:"10px 12px" }}><span style={{ fontSize:14 }}>🍺</span><span style={{ fontSize:12, color:"#0A0A0A", fontWeight:500 }}>Bar / Beer</span></div>}
+              {venue.google_data.serves_wine      && <div style={{ display:"flex", alignItems:"center", gap:8, backgroundColor:"#F7F5FA", borderRadius:12, padding:"10px 12px" }}><span style={{ fontSize:14 }}>🍷</span><span style={{ fontSize:12, color:"#0A0A0A", fontWeight:500 }}>Wine</span></div>}
+              {venue.google_data.delivery         && <div style={{ display:"flex", alignItems:"center", gap:8, backgroundColor:"#F7F5FA", borderRadius:12, padding:"10px 12px" }}><span style={{ fontSize:14 }}>🛵</span><span style={{ fontSize:12, color:"#0A0A0A", fontWeight:500 }}>Delivery</span></div>}
+              {venue.google_data.takeout          && <div style={{ display:"flex", alignItems:"center", gap:8, backgroundColor:"#F7F5FA", borderRadius:12, padding:"10px 12px" }}><span style={{ fontSize:14 }}>🥡</span><span style={{ fontSize:12, color:"#0A0A0A", fontWeight:500 }}>Takeout</span></div>}
+              {venue.google_data.reservable       && <div style={{ display:"flex", alignItems:"center", gap:8, backgroundColor:"#F7F5FA", borderRadius:12, padding:"10px 12px" }}><span style={{ fontSize:14 }}>📅</span><span style={{ fontSize:12, color:"#0A0A0A", fontWeight:500 }}>Reservations</span></div>}
+              {venue.google_data.wheelchair_accessible && <div style={{ display:"flex", alignItems:"center", gap:8, backgroundColor:"#E0F7EA", borderRadius:12, padding:"10px 12px" }}><span style={{ fontSize:14 }}>♿</span><span style={{ fontSize:12, color:"#059669", fontWeight:500 }}>Accessible</span></div>}
+            </div>
+          </>
+        )}
+
         {amenities.length > 0 && (
           <>
             <div style={{ height:1, backgroundColor:"#F2EEF9", margin:"0 0 18px" }} />
