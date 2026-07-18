@@ -561,7 +561,7 @@ export default function HotelDetailPage() {
           </>
         )}
 
-        {amenities.length > 0 && (
+        {amenities.length > 0 && venue.source !== "google" && (
           <>
             <div style={{ height:1, backgroundColor:"#F2EEF9", margin:"0 0 18px" }} />
             <h3 style={{ fontSize:15, fontWeight:800, color:"#0A0A0A", margin:"0 0 12px", fontFamily:"var(--font-display,Syne,sans-serif)" }}>Facilities</h3>

@@ -107,13 +107,26 @@ function extractCity(addressComponents: any[]): string {
   return locality?.longText || locality?.long_name || adminArea?.longText || adminArea?.long_name || "Lagos";
 }
 
+function priceLevelToNumber(priceLevel: any): number | null {
+  if (!priceLevel) return null;
+  if (typeof priceLevel === "number") return priceLevel;
+  const map: Record<string, number> = {
+    "PRICE_LEVEL_FREE":           0,
+    "PRICE_LEVEL_INEXPENSIVE":    1,
+    "PRICE_LEVEL_MODERATE":       2,
+    "PRICE_LEVEL_EXPENSIVE":      3,
+    "PRICE_LEVEL_VERY_EXPENSIVE": 4,
+  };
+  return map[priceLevel] ?? null;
+}
+
 function buildGoogleData(details: any) {
   return {
     types:                 details.types,
     rating:                details.rating,
     total_ratings:         details.userRatingCount,
     vicinity:              details.shortFormattedAddress,
-    price_level:           details.priceLevel || null,
+    price_level:           priceLevelToNumber(details.priceLevel),
     editorial_summary:     details.editorialSummary?.text || null,
     serves_beer:           details.servesBeer || false,
     serves_wine:           details.servesWine || false,

@@ -697,11 +697,15 @@ export default function VenueDetailPage() {
         {venue.google_data && (
           <div style={{ padding: "0 16px 14px" }}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {venue.google_data.price_level && (
-                <div style={{ backgroundColor: "#FFF8E1", borderRadius: 10, padding: "7px 12px", border: "1px solid #FDE68A" }}>
-                  <span style={{ fontSize: 12, color: "#D97706", fontWeight: 700 }}>{"₦".repeat(venue.google_data.price_level)} · Price range</span>
-                </div>
-              )}
+              {(() => {
+                const pl = venue.google_data.price_level;
+                const n = typeof pl === "number" ? pl : ({ "PRICE_LEVEL_INEXPENSIVE":1,"PRICE_LEVEL_MODERATE":2,"PRICE_LEVEL_EXPENSIVE":3,"PRICE_LEVEL_VERY_EXPENSIVE":4 } as any)[pl] ?? null;
+                return n ? (
+                  <div style={{ backgroundColor: "#FFF8E1", borderRadius: 10, padding: "7px 12px", border: "1px solid #FDE68A" }}>
+                    <span style={{ fontSize: 12, color: "#D97706", fontWeight: 700 }}>{"₦".repeat(n)} · Price range</span>
+                  </div>
+                ) : null;
+              })()}
               {venue.google_data.serves_cocktails && <div style={{ backgroundColor: "#F7F5FA", borderRadius: 10, padding: "7px 12px", border: "1px solid #F2EEF9" }}><span style={{ fontSize: 12 }}>🍸 Cocktails</span></div>}
               {venue.google_data.serves_beer      && <div style={{ backgroundColor: "#F7F5FA", borderRadius: 10, padding: "7px 12px", border: "1px solid #F2EEF9" }}><span style={{ fontSize: 12 }}>🍺 Beer</span></div>}
               {venue.google_data.serves_wine      && <div style={{ backgroundColor: "#F7F5FA", borderRadius: 10, padding: "7px 12px", border: "1px solid #F2EEF9" }}><span style={{ fontSize: 12 }}>🍷 Wine</span></div>}
@@ -722,11 +726,15 @@ export default function VenueDetailPage() {
         {venue.google_data && (
           <div style={{ padding: "0 16px 14px" }}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {venue.google_data.price_level && (
-                <div style={{ backgroundColor: "#FFF8E1", borderRadius: 10, padding: "7px 12px", border: "1px solid #FDE68A" }}>
-                  <span style={{ fontSize: 12, color: "#D97706", fontWeight: 700 }}>{"₦".repeat(venue.google_data.price_level)} · Price range</span>
-                </div>
-              )}
+              {(() => {
+                const pl = venue.google_data.price_level;
+                const n = typeof pl === "number" ? pl : ({ "PRICE_LEVEL_INEXPENSIVE":1,"PRICE_LEVEL_MODERATE":2,"PRICE_LEVEL_EXPENSIVE":3,"PRICE_LEVEL_VERY_EXPENSIVE":4 } as any)[pl] ?? null;
+                return n ? (
+                  <div style={{ backgroundColor: "#FFF8E1", borderRadius: 10, padding: "7px 12px", border: "1px solid #FDE68A" }}>
+                    <span style={{ fontSize: 12, color: "#D97706", fontWeight: 700 }}>{"₦".repeat(n)} · Price range</span>
+                  </div>
+                ) : null;
+              })()}
               {venue.google_data.serves_cocktails && <div style={{ backgroundColor: "#F7F5FA", borderRadius: 10, padding: "7px 12px", border: "1px solid #F2EEF9" }}><span style={{ fontSize: 12 }}>🍸 Cocktails</span></div>}
               {venue.google_data.serves_beer      && <div style={{ backgroundColor: "#F7F5FA", borderRadius: 10, padding: "7px 12px", border: "1px solid #F2EEF9" }}><span style={{ fontSize: 12 }}>🍺 Beer</span></div>}
               {venue.google_data.serves_wine      && <div style={{ backgroundColor: "#F7F5FA", borderRadius: 10, padding: "7px 12px", border: "1px solid #F2EEF9" }}><span style={{ fontSize: 12 }}>🍷 Wine</span></div>}
@@ -745,7 +753,7 @@ export default function VenueDetailPage() {
         )}
         
 
-        {venueTags.length > 0 && (
+        {venueTags.length > 0 && venue.source !== "google" && (
           <div style={{ padding: "0 16px 14px" }}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {visibleTags.map((tag: string) => {
