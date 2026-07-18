@@ -302,10 +302,15 @@ export default function RestaurantsPage() {
     }
     if (filters.city !== "All" && !venue.address?.toLowerCase().includes(filters.city.toLowerCase())) return false;
     if (filters.cuisine !== "All") {
-      const tags  = (venue.tags || []).map((t: string) => t.toLowerCase());
-      const cat   = (venue.category || "").toLowerCase();
-      const filt  = filters.cuisine.toLowerCase();
-      if (!tags.includes(filt) && !cat.includes(filt)) return false;
+      const tags        = (venue.tags || []).map((t: string) => t.toLowerCase());
+      const filters_arr = (venue.filters || []).map((t: string) => t.toLowerCase());
+      const googleTypes = (venue.google_data?.types || []).map((t: string) => t.toLowerCase().replace(/_/g, " "));
+      const cat         = (venue.category || "").toLowerCase();
+      const name        = (venue.name || "").toLowerCase();
+      const filt        = filters.cuisine.toLowerCase();
+      const hasAnyTags  = tags.length > 0 || filters_arr.length > 0;
+      // Only apply cuisine filter to vendor venues that have tags; Google venues pass through
+      if (hasAnyTags && !tags.includes(filt) && !filters_arr.includes(filt) && !cat.includes(filt) && !googleTypes.some((t:string) => t.includes(filt))) return false;
     }
     if (filters.openNow && !isOpenNowWAT(venue.opening_hours)) return false;
     if (filters.minRating > 0 && (venue.rating || 0) < filters.minRating) return false;

@@ -113,9 +113,12 @@ export default function BarLoungePage() {
     if(quickTonight&&!v.opening_hours)return false;
     if(quickWeekend&&!isWeekend(now))return false;
     if(nearMe&&userLat&&userLng){if(!v.lat||!v.lng)return false;if(haversineKm(userLat,userLng,v.lat,v.lng)>15)return false;}
-    const tags=[...(v.filters||[]),...(v.tags||[])].map((t:string)=>t.toLowerCase());
-    if(appliedGenres.length>0&&!appliedGenres.some(g=>tags.includes(g.toLowerCase())))return false;
-    if(appliedVibes.length>0&&!appliedVibes.some(vb=>tags.includes(vb.toLowerCase())))return false;
+    const googleTypes=(v.google_data?.types||[]).map((t:string)=>t.toLowerCase().replace(/_/g," "));
+    const tags=[...(v.filters||[]),...(v.tags||[]),...googleTypes].map((t:string)=>t.toLowerCase());
+    // For Google venues with no tags, genre/vibe filters pass through rather than hiding them
+    const hasAnyTags=(v.filters||[]).length>0||(v.tags||[]).length>0;
+    if(appliedGenres.length>0&&hasAnyTags&&!appliedGenres.some(g=>tags.includes(g.toLowerCase())))return false;
+    if(appliedVibes.length>0&&hasAnyTags&&!appliedVibes.some(vb=>tags.includes(vb.toLowerCase())))return false;
     if(appliedSpend!==null){
       const sr=SPEND_RANGES[appliedSpend];
       // Map Google price_level to naira estimate: 1=<10k, 2=10-50k, 3=50k+, 4=50k+

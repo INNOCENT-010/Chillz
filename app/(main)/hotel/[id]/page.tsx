@@ -132,7 +132,7 @@ export default function HotelDetailPage() {
     queryKey: ["hotel-detail", id],
     queryFn: async () => {
       const { data: venue } = await (supabase.from("venues") as any)
-        .select("id,name,description,address,images,rating,review_count,filters,lat,lng,vendor_id,phone,whatsapp,instagram,contact_email,website,videos,category")
+        .select("id,name,description,address,images,rating,review_count,filters,lat,lng,vendor_id,phone,whatsapp,instagram,contact_email,website,videos,category,google_data,bookings_enabled,source")
         .eq("id", id).maybeSingle();
 
       if (venue?.id) {
@@ -168,7 +168,7 @@ export default function HotelDetailPage() {
       if (!vendorData?.id) return null;
 
       const { data: venueData } = await (supabase.from("venues") as any)
-        .select("id,name,description,address,images,rating,review_count,filters,lat,lng,vendor_id,phone,whatsapp,instagram,contact_email,website,videos,category")
+        .select("id,name,description,address,images,rating,review_count,filters,lat,lng,vendor_id,phone,whatsapp,instagram,contact_email,website,videos,category,google_data,bookings_enabled,source")
         .eq("vendor_id", vendorData.id).maybeSingle();
       const { data: rooms } = await (supabase.from("vendor_listings") as any)
         .select("id,title,description,price_per_unit,unit_label,images,amenities,room_type,min_nights,available_units,max_bookings_per_day,checkin_time,checkout_time,availability,is_active,blocked_dates")
@@ -514,6 +514,29 @@ export default function HotelDetailPage() {
           </>
         )}
 
+        {/* Google rich data */}
+        {venue.google_data && (
+          <>
+            {venue.google_data.editorial_summary && !vendor.description && (
+              <>
+                <h3 style={{ fontSize:15, fontWeight:800, color:"#0A0A0A", margin:"0 0 8px", fontFamily:"var(--font-display,Syne,sans-serif)" }}>About this Hotel</h3>
+                <p style={{ fontSize:13, color:"#6B6B6B", lineHeight:1.7, margin:"0 0 20px", fontStyle:"italic" }}>"{venue.google_data.editorial_summary}"</p>
+              </>
+            )}
+            {/* Price level + attribute chips */}
+            <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:20 }}>
+              {venue.google_data.price_level && (
+                <span style={{ fontSize:12, fontWeight:700, color:ACCENT, backgroundColor:ACCENT_BG, padding:"4px 12px", borderRadius:999 }}>
+                  {"₦".repeat(venue.google_data.price_level)} · Price range
+                </span>
+              )}
+              {venue.google_data.wheelchair_accessible && (
+                <span style={{ fontSize:11, fontWeight:600, color:"#059669", backgroundColor:"#D1FAE5", padding:"4px 10px", borderRadius:999 }}>♿ Accessible</span>
+              )}
+            </div>
+          </>
+        )}
+
         {amenities.length > 0 && (
           <>
             <div style={{ height:1, backgroundColor:"#F2EEF9", margin:"0 0 18px" }} />
@@ -716,6 +739,40 @@ export default function HotelDetailPage() {
                     </div>
                   </div>
                   {review.comment && <p style={{ fontSize:12, color:"#6B6B6B", lineHeight:1.5, margin:0, fontStyle:"italic" }}>"{review.comment}"</p>}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Google reviews fallback */}
+        {(!reviews || reviews.length === 0) && venue.google_data?.reviews?.length > 0 && (
+          <>
+            <div style={{ height:1, backgroundColor:"#F2EEF9", margin:"0 0 18px" }} />
+            <h3 style={{ fontSize:15, fontWeight:800, color:"#0A0A0A", margin:"0 0 4px", fontFamily:"var(--font-display,Syne,sans-serif)" }}>Guest Reviews</h3>
+            <p style={{ fontSize:11, color:"#9E9E9E", margin:"0 0 12px" }}>From Google</p>
+            <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:18 }}>
+              {venue.google_data.reviews.map((r: any, i: number) => (
+                <div key={i} style={{ backgroundColor:"#F7F5FA", borderRadius:16, padding:"12px 14px" }}>
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                      <div style={{ width:30, height:30, borderRadius:"50%", backgroundColor:ACCENT_BG, overflow:"hidden", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                        {r.avatar
+                          ? <img src={r.avatar} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                          : <span style={{ fontSize:12, fontWeight:700, color:ACCENT }}>{r.author?.[0]}</span>}
+                      </div>
+                      <div>
+                        <span style={{ fontWeight:600, fontSize:12, color:"#0A0A0A" }}>{r.author || "Guest"}</span>
+                        {r.time && <p style={{ fontSize:10, color:"#9E9E9E", margin:0 }}>{r.time}</p>}
+                      </div>
+                    </div>
+                    <div style={{ display:"flex", gap:2 }}>
+                      {[1,2,3,4,5].map(s => (
+                        <Star key={s} size={11} style={{ color:s<=(r.rating||0)?"#FBBF24":"#E4DCF0", fill:s<=(r.rating||0)?"#FBBF24":"#E4DCF0" }} />
+                      ))}
+                    </div>
+                  </div>
+                  {r.text && <p style={{ fontSize:12, color:"#6B6B6B", lineHeight:1.5, margin:0, fontStyle:"italic" }}>"{r.text}"</p>}
                 </div>
               ))}
             </div>

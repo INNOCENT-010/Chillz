@@ -49,9 +49,11 @@ export default function ClubPage(){
     if(quickTonight&&!v.opening_hours)return false;
     if(quickWeekend&&!isWeekend(now))return false;
     if(nearMe&&userLat&&userLng){if(!v.lat||!v.lng)return false;if(haversineKm(userLat,userLng,v.lat,v.lng)>15)return false;}
-    const tags=[...(v.filters||[]),...(v.tags||[])].map((t:string)=>t.toLowerCase());
-    if(appliedGenres.length>0&&!appliedGenres.some(g=>tags.includes(g.toLowerCase())))return false;
-    if(appliedVibes.length>0&&!appliedVibes.some(vb=>tags.includes(vb.toLowerCase())))return false;
+    const googleTypes=(v.google_data?.types||[]).map((t:string)=>t.toLowerCase().replace(/_/g," "));
+    const tags=[...(v.filters||[]),...(v.tags||[]),...googleTypes].map((t:string)=>t.toLowerCase());
+    const hasAnyTags=(v.filters||[]).length>0||(v.tags||[]).length>0;
+    if(appliedGenres.length>0&&hasAnyTags&&!appliedGenres.some(g=>tags.includes(g.toLowerCase())))return false;
+    if(appliedVibes.length>0&&hasAnyTags&&!appliedVibes.some(vb=>tags.includes(vb.toLowerCase())))return false;
     if(appliedSpend!==null){
       const sr=SPEND_RANGES[appliedSpend];
       const googlePrice=v.google_data?.price_level?[0,5000,25000,75000,200000][v.google_data.price_level]:null;
