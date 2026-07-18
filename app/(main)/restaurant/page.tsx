@@ -255,19 +255,55 @@ export default function RestaurantsPage() {
     }, () => {});
   }, []);
 
-  const { data: venues = [], isLoading } = useQuery({
-    queryKey: ["restaurants"],
-    queryFn: async () => {
-      const { data } = await (supabase.from("venues") as any)
-        .select("id,name,address,images,rating,review_count,filters,tags,category,opening_hours,lat,lng,is_featured,minimum_spend,vendor_id,source,bookings_enabled,google_data")
-        .eq("is_active", true)
-        .in("category", ["restaurant","cafe"])
-        .order("rating", { ascending: false })
-        .limit(100);
-      return (data || []) as any[];
-    },
-    staleTime: 1000 * 60,
-  });
+  const PAGE_SIZE = 20;
+  const [venues,         setVenues]         = useState<any[]>([]);
+  const [isLoading,      setIsLoading]      = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [hasMore,        setHasMore]        = useState(true);
+  const [currentPage,    setCurrentPage]    = useState(0);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  const fetchPage = async (pageNum: number) => {
+    const from = pageNum * PAGE_SIZE;
+    const { data } = await (supabase.from("venues") as any)
+      .select("id,name,address,images,rating,review_count,filters,tags,category,opening_hours,lat,lng,is_featured,minimum_spend,vendor_id,source,bookings_enabled,google_data")
+      .eq("is_active", true)
+      .in("category", ["restaurant","cafe"])
+      .order("rating", { ascending: false })
+      .range(from, from + PAGE_SIZE - 1);
+    return (data || []) as any[];
+  };
+
+  useEffect(() => {
+    setIsLoading(true);
+    fetchPage(0).then(data => {
+      setVenues(data);
+      setHasMore(data.length === PAGE_SIZE);
+      setIsLoading(false);
+    });
+  }, []);
+
+  const loadMore = async () => {
+    if (isFetchingMore || !hasMore) return;
+    setIsFetchingMore(true);
+    const next = currentPage + 1;
+    const data = await fetchPage(next);
+    setVenues(prev => [...prev, ...data]);
+    setHasMore(data.length === PAGE_SIZE);
+    setCurrentPage(next);
+    setIsFetchingMore(false);
+  };
+
+  useEffect(() => {
+    const el = bottomRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      entries => { if (entries[0].isIntersecting && !isFetchingMore && hasMore) loadMore(); },
+      { threshold: 0.1 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isFetchingMore, hasMore, currentPage]);
 
   // Saved venues
   const { data: savedVenueIds = [], refetch: refetchSaved } = useQuery({
@@ -528,6 +564,15 @@ export default function RestaurantsPage() {
         <div style={{display:"flex",justifyContent:"center",padding:"16px 0"}}>
           <div style={{width:24,height:24,borderRadius:"50%",border:`2.5px solid ${ACCENT_BG}`,borderTopColor:ACCENT,animation:"spin 0.8s linear infinite"}}/>
         </div>
+      )}
+      <div ref={bottomRef} style={{ height: 1 }} />
+      {isFetchingMore && (
+        <div style={{ display:"flex", justifyContent:"center", padding:"20px 0" }}>
+          <div style={{ width:24, height:24, borderRadius:"50%", border:`2.5px solid ${ACCENT_BG}`, borderTopColor:ACCENT, animation:"spin 0.8s linear infinite" }}/>
+        </div>
+      )}
+      {!hasMore && venues.length > 0 && (
+        <p style={{ textAlign:"center", fontSize:12, color:"#C4BAD8", padding:"16px 0 32px" }}>You've seen all restaurants ✓</p>
       )}
       <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </MainLayout>

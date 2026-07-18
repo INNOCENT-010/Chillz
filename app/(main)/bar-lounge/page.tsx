@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { MainLayout } from "@/components/layout/main-layout";
@@ -81,18 +81,74 @@ export default function BarLoungePage() {
   const openFilter = () => { setGenres(appliedGenres); setVibes(appliedVibes); setSpendIdx(appliedSpend); setShowFilter(true); };
   const applyFilter = () => { setAppliedGenres(genres); setAppliedVibes(vibes); setAppliedSpend(spendIdx); setShowFilter(false); };
 
-  const { data:allVenues, isLoading } = useQuery({
-    queryKey:["discover-venues",CATEGORY],
-    queryFn:async()=>{const{data}=await(supabase.from("venues")as any).select("*,google_data").eq("is_active",true).eq("category",CATEGORY).order("rating",{ascending:false}).limit(80);return(data||[])as any[];},
-    staleTime:1000*60,
-  });
+  const PAGE_SIZE = 20;
+  const [allVenues,      setAllVenues]      = useState<any[]>([]);
+  const [isLoading,      setIsLoading]      = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [hasMore,        setHasMore]        = useState(true);
+  const [currentPage,    setCurrentPage]    = useState(0);
+  const [menuPrices,     setMenuPrices]     = useState<Record<string,number>>({});
+  const bottomRef = useRef<HTMLDivElement>(null);
 
-  const vendorIds=(allVenues||[]).filter((v:any)=>!v.minimum_spend&&v.vendor_id).map((v:any)=>v.vendor_id);
-  const {data:menuPrices}=useQuery({
-    queryKey:["vendor-cheapest-menu",vendorIds.join(",")],
-    queryFn:async()=>{if(!vendorIds.length)return{};const{data}=await supabase.from("vendor_menu").select("vendor_id,price").in("vendor_id",vendorIds).eq("is_available",true);const map:Record<string,number>={};(data||[]).forEach((item:any)=>{if(!map[item.vendor_id]||item.price<map[item.vendor_id])map[item.vendor_id]=item.price;});return map;},
-    enabled:vendorIds.length>0,staleTime:1000*60*5,
-  });
+  const fetchPage = async (pageNum: number) => {
+    const from = pageNum * PAGE_SIZE;
+    const { data } = await (supabase.from("venues") as any)
+      .select("*,google_data")
+      .eq("is_active", true)
+      .eq("category", CATEGORY)
+      .order("rating", { ascending: false })
+      .range(from, from + PAGE_SIZE - 1);
+    return (data || []) as any[];
+  };
+
+  useEffect(() => {
+    setIsLoading(true);
+    fetchPage(0).then(data => {
+      setAllVenues(data);
+      setHasMore(data.length === PAGE_SIZE);
+      setIsLoading(false);
+      const vids = data.filter((v:any) => !v.minimum_spend && v.vendor_id).map((v:any) => v.vendor_id);
+      if (vids.length) {
+        supabase.from("vendor_menu").select("vendor_id,price").in("vendor_id", vids).eq("is_available", true)
+          .then(({ data: md }) => {
+            const map: Record<string,number> = {};
+            (md||[]).forEach((i:any) => { if (!map[i.vendor_id]||i.price<map[i.vendor_id]) map[i.vendor_id]=i.price; });
+            setMenuPrices(map);
+          });
+      }
+    });
+  }, []);
+
+  const loadMore = async () => {
+    if (isFetchingMore || !hasMore) return;
+    setIsFetchingMore(true);
+    const next = currentPage + 1;
+    const data = await fetchPage(next);
+    setAllVenues(prev => [...prev, ...data]);
+    setHasMore(data.length === PAGE_SIZE);
+    setCurrentPage(next);
+    setIsFetchingMore(false);
+    const vids = data.filter((v:any) => !v.minimum_spend && v.vendor_id).map((v:any) => v.vendor_id);
+    if (vids.length) {
+      supabase.from("vendor_menu").select("vendor_id,price").in("vendor_id", vids).eq("is_available", true)
+        .then(({ data: md }) => {
+          const map: Record<string,number> = {};
+          (md||[]).forEach((i:any) => { if (!map[i.vendor_id]||i.price<map[i.vendor_id]) map[i.vendor_id]=i.price; });
+          setMenuPrices(prev => ({ ...prev, ...map }));
+        });
+    }
+  };
+
+  useEffect(() => {
+    const el = bottomRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      entries => { if (entries[0].isIntersecting && !isFetchingMore && hasMore) loadMore(); },
+      { threshold: 0.1 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isFetchingMore, hasMore, currentPage]);
 
   const {data:savedVenueIds}=useQuery({
     queryKey:["saved-venues",user?.id,CATEGORY],
@@ -252,6 +308,16 @@ export default function BarLoungePage() {
           </>
         )}
       </div>
+      <div ref={bottomRef} style={{ height: 1 }} />
+      {isFetchingMore && (
+        <div style={{ display:"flex", justifyContent:"center", padding:"20px 0" }}>
+          <div style={{ width:24, height:24, borderRadius:"50%", border:`2.5px solid ${ACCENT_BG}`, borderTopColor:ACCENT, animation:"spin 0.8s linear infinite" }}/>
+        </div>
+      )}
+      {!hasMore && allVenues.length > 0 && (
+        <p style={{ textAlign:"center", fontSize:12, color:"#C4BAD8", padding:"16px 0 32px" }}>You've seen all spots ✓</p>
+      )}
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </MainLayout>
   );
 }

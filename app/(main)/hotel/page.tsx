@@ -305,58 +305,89 @@ export default function HotelPage() {
   const applyFilter = () => { setAAmenities(amenities); setAPriceTier(priceTier); setAStarRating(starRating); setShowFilter(false); };
   const clearAll    = () => { setSearch(""); setNearMe(false); setShowSaved(false); setAAmenities([]); setAPriceTier(null); setAStarRating(null); };
 
-  const { data: vendors, isLoading } = useQuery({
-    queryKey: ["discover-hotels"],
-    queryFn: async () => {
-      const { data: venues } = await (supabase.from("venues") as any)
-        .select("id,name,address,images,rating,review_count,filters,lat,lng,is_featured,created_at,vendor_id")
-        .eq("is_active", true)
-        .eq("category", "hotel")
-        .order("rating", { ascending: false })
-        .limit(60);
+  const PAGE_SIZE = 16;
+  const [vendors,        setVendors]        = useState<any[]>([]);
+  const [isLoading,      setIsLoading]      = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [hasMore,        setHasMore]        = useState(true);
+  const [currentPage,    setCurrentPage]    = useState(0);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
-      if (!venues?.length) return [];
-
-      const vendorIds = (venues as any[]).filter((v:any) => v.vendor_id).map((v:any) => v.vendor_id);
-      let vendorMap:  Record<string, any>    = {};
-      let listingMap: Record<string, any[]>  = {};
-      let priceMap:   Record<string, number> = {};
-
-      if (vendorIds.length) {
-        const { data: vds } = await (supabase.from("vendors") as any)
-          .select("id,business_name,description")
-          .in("id", vendorIds);
-        (vds || []).forEach((v: any) => { vendorMap[v.id] = v; });
-
-        // Fetch listings with amenities + room_type for card display
-        const { data: listings } = await (supabase.from("vendor_listings") as any)
-          .select("vendor_id,price_per_unit,amenities,room_type,min_nights,images")
-          .in("vendor_id", vendorIds)
-          .eq("is_active", true);
-        (listings || []).forEach((l: any) => {
-          if (!listingMap[l.vendor_id]) listingMap[l.vendor_id] = [];
-          listingMap[l.vendor_id].push(l);
-          if (!priceMap[l.vendor_id] || l.price_per_unit < priceMap[l.vendor_id]) {
-            priceMap[l.vendor_id] = l.price_per_unit;
-          }
-        });
-      }
-
-      return (venues as any[]).map((venue: any) => {
-        const vd = vendorMap[venue.vendor_id] || {};
-        return {
-          id:             vd.id || venue.vendor_id || venue.id,
-          venueId:        venue.id,
-          business_name:  vd.business_name || venue.name,
-          description:    vd.description   || null,
-          starting_price: priceMap[venue.vendor_id] || null,
-          listings:       listingMap[venue.vendor_id] || [],
-          venue,
-        };
+  const buildVendors = async (venues: any[]) => {
+    if (!venues.length) return [];
+    const vendorIds = venues.filter((v:any) => v.vendor_id).map((v:any) => v.vendor_id);
+    let vendorMap:  Record<string,any>    = {};
+    let listingMap: Record<string,any[]>  = {};
+    let priceMap:   Record<string,number> = {};
+    if (vendorIds.length) {
+      const { data: vds } = await (supabase.from("vendors") as any)
+        .select("id,business_name,description").in("id", vendorIds);
+      (vds||[]).forEach((v:any) => { vendorMap[v.id] = v; });
+      const { data: listings } = await (supabase.from("vendor_listings") as any)
+        .select("vendor_id,price_per_unit,amenities,room_type,min_nights,images")
+        .in("vendor_id", vendorIds).eq("is_active", true);
+      (listings||[]).forEach((l:any) => {
+        if (!listingMap[l.vendor_id]) listingMap[l.vendor_id] = [];
+        listingMap[l.vendor_id].push(l);
+        if (!priceMap[l.vendor_id]||l.price_per_unit<priceMap[l.vendor_id]) priceMap[l.vendor_id]=l.price_per_unit;
       });
-    },
-    staleTime: 1000 * 60,
-  });
+    }
+    return venues.map((venue:any) => {
+      const vd = vendorMap[venue.vendor_id] || {};
+      return {
+        id:             vd.id || venue.vendor_id || venue.id,
+        venueId:        venue.id,
+        business_name:  vd.business_name || venue.name,
+        description:    vd.description   || null,
+        starting_price: priceMap[venue.vendor_id] || null,
+        listings:       listingMap[venue.vendor_id] || [],
+        venue,
+      };
+    });
+  };
+
+  const fetchPage = async (pageNum: number) => {
+    const from = pageNum * PAGE_SIZE;
+    const { data } = await (supabase.from("venues") as any)
+      .select("id,name,address,images,rating,review_count,filters,lat,lng,is_featured,created_at,vendor_id")
+      .eq("is_active", true).eq("category", "hotel")
+      .order("rating", { ascending: false })
+      .range(from, from + PAGE_SIZE - 1);
+    return (data||[]) as any[];
+  };
+
+  useEffect(() => {
+    setIsLoading(true);
+    fetchPage(0).then(async venues => {
+      const built = await buildVendors(venues);
+      setVendors(built);
+      setHasMore(venues.length === PAGE_SIZE);
+      setIsLoading(false);
+    });
+  }, []);
+
+  const loadMore = async () => {
+    if (isFetchingMore || !hasMore) return;
+    setIsFetchingMore(true);
+    const next = currentPage + 1;
+    const venues = await fetchPage(next);
+    const built  = await buildVendors(venues);
+    setVendors(prev => [...prev, ...built]);
+    setHasMore(venues.length === PAGE_SIZE);
+    setCurrentPage(next);
+    setIsFetchingMore(false);
+  };
+
+  useEffect(() => {
+    const el = bottomRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      entries => { if (entries[0].isIntersecting && !isFetchingMore && hasMore) loadMore(); },
+      { threshold: 0.1 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isFetchingMore, hasMore, currentPage]);
 
   // ── Saved — persisted to DB ───────────────────────────────────────────
   const { data: savedVenueIds = [] } = useQuery({
@@ -632,6 +663,16 @@ export default function HotelPage() {
           </>
         )}
       </div>
+    <div ref={bottomRef} style={{ height: 1 }} />
+      {isFetchingMore && (
+        <div style={{ display:"flex", justifyContent:"center", padding:"20px 0" }}>
+          <div style={{ width:24, height:24, borderRadius:"50%", border:`2.5px solid ${ACCENT_BG}`, borderTopColor:ACCENT, animation:"spin 0.8s linear infinite" }}/>
+        </div>
+      )}
+      {!hasMore && vendors.length > 0 && (
+        <p style={{ textAlign:"center", fontSize:12, color:"#C4BAD8", padding:"16px 0 32px" }}>You've seen all hotels ✓</p>
+      )}
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </MainLayout>
   );
 }
