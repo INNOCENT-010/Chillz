@@ -549,6 +549,57 @@ export default function VenueDetailPage() {
       qc.invalidateQueries({ queryKey: ["wallet-quick"] });
       clear();
       setSelectedPackage(null);
+
+      // Booking confirmation email — fire and forget
+      if (user?.email) {
+        const firstName = user.full_name?.split(" ")[0] || "there";
+        const venueName = venue?.name || "the venue";
+        const bookingDateStr = bookingDate
+          ? new Date(bookingDate).toLocaleString("en-NG", { dateStyle: "full", timeStyle: "short" })
+          : "";
+        fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-email`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({
+            to: user.email,
+            subject: `🎉 Booking Confirmed — ${venueName}`,
+            html: `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#F7F5FA;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<div style="max-width:480px;margin:0 auto;padding:24px 16px;">
+  <div style="background:linear-gradient(135deg,#3D0066,#5B0EA6);border-radius:20px;padding:32px 24px;text-align:center;margin-bottom:16px;">
+    <div style="font-size:48px;margin-bottom:12px;">🎉</div>
+    <h1 style="color:#FFFFFF;font-size:22px;font-weight:900;margin:0 0 6px;">Booking Confirmed!</h1>
+    <p style="color:rgba(255,255,255,0.75);font-size:13px;margin:0;">${venueName}</p>
+  </div>
+  <div style="background:#FFFFFF;border-radius:16px;padding:24px;margin-bottom:16px;box-shadow:0 2px 12px rgba(91,14,166,0.08);">
+    <p style="font-size:15px;color:#0A0A0A;margin:0 0 16px;">Hey ${firstName} 👋</p>
+    <p style="font-size:14px;color:#6B6B6B;line-height:1.7;margin:0 0 16px;">
+      Your spot at <strong style="color:#0A0A0A;">${venueName}</strong> is locked in. Show your QR code at the venue to check in.
+    </p>
+    <div style="background:#F7F5FA;border-radius:12px;padding:16px;margin-bottom:12px;">
+      <table style="width:100%;border-collapse:collapse;">
+        <tr><td style="font-size:12px;color:#9E9E9E;padding:4px 0;">Venue</td><td style="font-size:13px;font-weight:700;color:#0A0A0A;text-align:right;">${venueName}</td></tr>
+        ${bookingDateStr ? `<tr><td style="font-size:12px;color:#9E9E9E;padding:4px 0;">Date & Time</td><td style="font-size:13px;font-weight:700;color:#0A0A0A;text-align:right;">${bookingDateStr}</td></tr>` : ""}
+        <tr><td style="font-size:12px;color:#9E9E9E;padding:4px 0;">Amount Reserved</td><td style="font-size:13px;font-weight:700;color:#5B0EA6;text-align:right;">₦${reserveAmount.toLocaleString()}</td></tr>
+        ${selectedPackage ? `<tr><td style="font-size:12px;color:#9E9E9E;padding:4px 0;">Package</td><td style="font-size:13px;font-weight:700;color:#0A0A0A;text-align:right;">${selectedPackage.name}</td></tr>` : ""}
+      </table>
+    </div>
+    <div style="background:#EDE0F7;border-radius:10px;padding:12px 14px;">
+      <p style="font-size:12px;color:#5B0EA6;margin:0;line-height:1.5;">💡 Your reserved amount is held until the venue confirms your bill. Unused balance returns to your wallet.</p>
+    </div>
+  </div>
+  <div style="text-align:center;margin-bottom:16px;">
+    <a href="https://mychillz.app/bookings/${booking.id}" style="display:inline-block;background:linear-gradient(135deg,#5B0EA6,#7B2FBE);color:#FFFFFF;text-decoration:none;padding:14px 32px;border-radius:14px;font-size:15px;font-weight:700;">View Booking & QR Code</a>
+  </div>
+  <p style="text-align:center;font-size:12px;color:#9E9E9E;margin:0;">Thank you for using Chillz.<br/><a href="https://mychillz.app" style="color:#5B0EA6;">mychillz.app</a></p>
+</div></body></html>`,
+          }),
+        }).catch(() => {});
+      }
+
       router.push(`/bookings/${booking.id}`);
     },
   });

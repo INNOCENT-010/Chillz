@@ -351,12 +351,12 @@ export default function HomePage() {
   const handleConfirm = () => {
     setConfirmDisplay(null);
     try {
-      const saved = sessionStorage.getItem("chillz_location");
+      const saved = localStorage.getItem("chillz_location");
       if (saved) {
         const parsed = JSON.parse(saved);
-        sessionStorage.setItem(
+        localStorage.setItem(
           "chillz_location",
-          JSON.stringify({ ...parsed, confirmed: true }),
+          JSON.stringify({ ...parsed, confirmed: true, savedAt: Date.now() }),
         );
       }
     } catch { /* ignore */ }
@@ -364,7 +364,7 @@ export default function HomePage() {
 
   const handleRetry = () => {
     setConfirmDisplay(null);
-    try { sessionStorage.removeItem("chillz_location"); } catch { /* ignore */ }
+    try { localStorage.removeItem("chillz_location"); } catch { /* ignore */ }
     window.location.reload();
   };
 

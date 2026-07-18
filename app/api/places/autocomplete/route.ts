@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   try {
     // Use the NEW Places API autocomplete endpoint
     const res = await fetch(
-      `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&key=${apiKey}&components=country:ng&language=en&types=establishment|geocode`,
+      `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&key=${apiKey}&components=country:ng&language=en`,
       { next: { revalidate: 0 } }
     );
 
