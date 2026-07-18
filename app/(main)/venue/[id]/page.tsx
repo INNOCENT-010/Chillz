@@ -717,14 +717,24 @@ export default function VenueDetailPage() {
               )}
             </div>
           </div>
-        )} border: "1px solid #F2EEF9" }}><span style={{ fontSize: 12 }}>🍽️ Dine In</span></div>}
-              {venue.google_data.delivery && <div style={{ backgroundColor: "#F7F5FA", borderRadius: 10, padding: "7px 12px", border: "1px solid #F2EEF9" }}><span style={{ fontSize: 12 }}>🛵 Delivery</span></div>}
-              {venue.google_data.wheelchair_accessible && <div style={{ backgroundColor: "#F7F5FA", borderRadius: 10, padding: "7px 12px", border: "1px solid #F2EEF9" }}><span style={{ fontSize: 12 }}>♿ Accessible</span></div>}
-              {venue.google_data.editorial_summary && (
-                <div style={{ width: "100%", backgroundColor: "#EDE0F7", borderRadius: 10, padding: "10px 12px", marginTop: 4 }}>
-                  <p style={{ fontSize: 12, color: "#5B0EA6", margin: 0, lineHeight: 1.5, fontStyle: "italic" }}>"{venue.google_data.editorial_summary}"</p>
+        )}
+
+        {venue.google_data && (
+          <div style={{ padding: "0 16px 14px" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {venue.google_data.price_level && (
+                <div style={{ backgroundColor: "#FFF8E1", borderRadius: 10, padding: "7px 12px", border: "1px solid #FDE68A" }}>
+                  <span style={{ fontSize: 12, color: "#D97706", fontWeight: 700 }}>{"₦".repeat(venue.google_data.price_level)} · Price range</span>
                 </div>
               )}
+              {venue.google_data.serves_cocktails && <div style={{ backgroundColor: "#F7F5FA", borderRadius: 10, padding: "7px 12px", border: "1px solid #F2EEF9" }}><span style={{ fontSize: 12 }}>🍸 Cocktails</span></div>}
+              {venue.google_data.serves_beer      && <div style={{ backgroundColor: "#F7F5FA", borderRadius: 10, padding: "7px 12px", border: "1px solid #F2EEF9" }}><span style={{ fontSize: 12 }}>🍺 Beer</span></div>}
+              {venue.google_data.serves_wine      && <div style={{ backgroundColor: "#F7F5FA", borderRadius: 10, padding: "7px 12px", border: "1px solid #F2EEF9" }}><span style={{ fontSize: 12 }}>🍷 Wine</span></div>}
+              {venue.google_data.dine_in          && <div style={{ backgroundColor: "#F7F5FA", borderRadius: 10, padding: "7px 12px", border: "1px solid #F2EEF9" }}><span style={{ fontSize: 12 }}>🍽️ Dine In</span></div>}
+              {venue.google_data.delivery         && <div style={{ backgroundColor: "#F7F5FA", borderRadius: 10, padding: "7px 12px", border: "1px solid #F2EEF9" }}><span style={{ fontSize: 12 }}>🛵 Delivery</span></div>}
+              {venue.google_data.takeout          && <div style={{ backgroundColor: "#F7F5FA", borderRadius: 10, padding: "7px 12px", border: "1px solid #F2EEF9" }}><span style={{ fontSize: 12 }}>🥡 Takeout</span></div>}
+              {venue.google_data.reservable       && <div style={{ backgroundColor: "#F7F5FA", borderRadius: 10, padding: "7px 12px", border: "1px solid #F2EEF9" }}><span style={{ fontSize: 12 }}>📅 Reservations</span></div>}
+              {venue.google_data.wheelchair_accessible && <div style={{ backgroundColor: "#F7F5FA", borderRadius: 10, padding: "7px 12px", border: "1px solid #F2EEF9" }}><span style={{ fontSize: 12 }}>♿ Accessible</span></div>}
               {venue.google_data.editorial_summary && (
                 <div style={{ width: "100%", backgroundColor: "#EDE0F7", borderRadius: 10, padding: "10px 12px", marginTop: 4 }}>
                   <p style={{ fontSize: 12, color: "#5B0EA6", margin: 0, lineHeight: 1.5, fontStyle: "italic" }}>"{venue.google_data.editorial_summary}"</p>
@@ -733,6 +743,7 @@ export default function VenueDetailPage() {
             </div>
           </div>
         )}
+        
 
         {venueTags.length > 0 && (
           <div style={{ padding: "0 16px 14px" }}>
