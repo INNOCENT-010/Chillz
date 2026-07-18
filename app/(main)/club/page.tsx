@@ -106,7 +106,7 @@ export default function ClubPage(){
     return () => observer.disconnect();
   }, [isFetchingMore, hasMore, currentPage]);
 
-  const{data:savedVenueIds}=useQuery({
+  const{data:savedVenueIds}=useQuery({queryKey:["saved-venues",user?.id,CATEGORY],queryFn:async()=>{if(!user?.id)return[];const{data}=await(supabase.from("saved_venues")as any).select("venue_id").eq("user_id",user.id);return(data||[]).map((r:any)=>r.venue_id)as string[];},enabled:!!user?.id,staleTime:1000*60});
   const isWeekend=(d:Date)=>{const day=d.getDay();return day===0||day===5||day===6;};const now=new Date();
   const filtered=(allVenues||[]).filter((v:any)=>{
     if(showSaved){if(!(savedVenueIds||[]).includes(v.id))return false;}
