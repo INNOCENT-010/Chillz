@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { isOpenNowWAT, getOpenStatusLabel } from "@/lib/time-utils";
 import { formatCurrency } from "@/lib/utils";
+import { priceLevelLabel } from "@/lib/price-utils";
 import { useAuthStore } from "@/store/auth";
 
 const ACCENT    = "#D97706";
@@ -182,9 +183,9 @@ function RestaurantCard({ venue, savedIds, onToggleSave }: {
               <span style={{ fontSize: 11, fontWeight: 600, color: ACCENT, backgroundColor: ACCENT_BG, padding: "2px 8px", borderRadius: 999 }}>
                 From {formatCurrency(venue.minimum_spend)}
               </span>
-            ) : venue.google_data?.price_level ? (
+            ) : priceLevelLabel(venue.google_data?.price_level) ? (
               <span style={{ fontSize: 11, fontWeight: 700, color: ACCENT, backgroundColor: ACCENT_BG, padding: "2px 8px", borderRadius: 999 }}>
-                {"₦".repeat(venue.google_data.price_level)}
+                {priceLevelLabel(venue.google_data?.price_level)}
               </span>
             ) : null}
           </div>
@@ -521,7 +522,14 @@ export default function RestaurantsPage() {
         )}
       </div>
 
-      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}`}</style>
+      {/* Infinite scroll sentinel */}
+      <div ref={bottomRef} style={{height:1}}/>
+      {isFetchingMore && (
+        <div style={{display:"flex",justifyContent:"center",padding:"16px 0"}}>
+          <div style={{width:24,height:24,borderRadius:"50%",border:`2.5px solid ${ACCENT_BG}`,borderTopColor:ACCENT,animation:"spin 0.8s linear infinite"}}/>
+        </div>
+      )}
+      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </MainLayout>
   );
 }

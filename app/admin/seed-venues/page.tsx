@@ -38,7 +38,7 @@ export default function SeedVenuesPage() {
         Google Venues Manager
       </h1>
       <p style={{ color: "#6B6B6B", marginBottom: 24 }}>
-        Seed new venues from Google Places or update existing ones with latest data.
+        Seed new venues from Google Places or update existing ones with latest data. takes -2mins
       </p>
 
       <div style={{ display: "flex", gap: 12, marginBottom: 24 }}>

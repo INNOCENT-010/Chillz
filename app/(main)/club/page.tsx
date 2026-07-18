@@ -37,9 +37,65 @@ export default function ClubPage(){
   const applyFilter=()=>{setAppliedGenres(genres);setAppliedVibes(vibes);setAppliedSpend(spendIdx);setShowFilter(false);};
   const clearAll=()=>{setSearch("");setQuickTonight(false);setQuickWeekend(false);setNearMe(false);setShowSaved(false);setAppliedGenres([]);setAppliedVibes([]);setAppliedSpend(null);};
 
-  const{data:allVenues,isLoading}=useQuery({queryKey:["discover-venues",CATEGORY],queryFn:async()=>{const{data}=await(supabase.from("venues")as any).select("*,google_data").eq("is_active",true).eq("category",CATEGORY).order("rating",{ascending:false}).limit(80);return(data||[])as any[];},staleTime:1000*60});
-  const vendorIds=(allVenues||[]).filter((v:any)=>!v.minimum_spend&&v.vendor_id).map((v:any)=>v.vendor_id);
-  const{data:menuPrices}=useQuery({queryKey:["vendor-cheapest-menu",vendorIds.join(",")],queryFn:async()=>{if(!vendorIds.length)return{};const{data}=await supabase.from("vendor_menu").select("vendor_id,price").in("vendor_id",vendorIds).eq("is_available",true);const map:Record<string,number>={};(data||[]).forEach((item:any)=>{if(!map[item.vendor_id]||item.price<map[item.vendor_id])map[item.vendor_id]=item.price;});return map;},enabled:vendorIds.length>0,staleTime:1000*60*5});
+  const [page, setPage] = useState(0);
+  const [allVenues, setAllVenues] = useState<any[]>([]);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const PAGE_SIZE = 20;
+
+  const fetchVenues = async (pageNum: number) => {
+    const from = pageNum * PAGE_SIZE;
+    const { data } = await (supabase.from("venues") as any)
+      .select("*,google_data")
+      .eq("is_active", true)
+      .eq("category", CATEGORY)
+      .order("rating", { ascending: false })
+      .range(from, from + PAGE_SIZE - 1);
+    return (data || []) as any[];
+  };
+
+  useEffect(() => {
+    setIsLoading(true);
+    fetchVenues(0).then(data => {
+      setAllVenues(data);
+      setHasMore(data.length === PAGE_SIZE);
+      setIsLoading(false);
+    });
+  }, []);
+
+  const loadMore = async () => {
+    if (isFetchingMore || !hasMore) return;
+    setIsFetchingMore(true);
+    const nextPage = page + 1;
+    const data = await fetchVenues(nextPage);
+    setAllVenues(prev => [...prev, ...data]);
+    setHasMore(data.length === PAGE_SIZE);
+    setPage(nextPage);
+    setIsFetchingMore(false);
+  };
+
+  // Infinite scroll observer
+  const bottomRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      entries => { if (entries[0].isIntersecting) loadMore(); },
+      { threshold: 0.1 }
+    );
+    if (bottomRef.current) observer.observe(bottomRef.current);
+    return () => observer.disconnect();
+  }, [isFetchingMore, hasMore, page]);
+  const [menuPrices, setMenuPrices] = useState<Record<string,number>>({});
+  useEffect(() => {
+    const vendorIds = allVenues.filter((v:any) => !v.minimum_spend && v.vendor_id).map((v:any) => v.vendor_id);
+    if (!vendorIds.length) return;
+    supabase.from("vendor_menu").select("vendor_id,price").in("vendor_id", vendorIds).eq("is_available", true)
+      .then(({ data }) => {
+        const map: Record<string,number> = {};
+        (data || []).forEach((item:any) => { if (!map[item.vendor_id] || item.price < map[item.vendor_id]) map[item.vendor_id] = item.price; });
+        setMenuPrices(prev => ({ ...prev, ...map }));
+      });
+  }, [allVenues.length]);
   const{data:savedVenueIds}=useQuery({queryKey:["saved-venues",user?.id,CATEGORY],queryFn:async()=>{if(!user?.id)return[];const{data}=await(supabase.from("saved_venues")as any).select("venue_id").eq("user_id",user.id);return(data||[]).map((r:any)=>r.venue_id)as string[];},enabled:!!user?.id,staleTime:1000*60});
 
   const isWeekend=(d:Date)=>{const day=d.getDay();return day===0||day===5||day===6;};const now=new Date();

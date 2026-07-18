@@ -8,6 +8,8 @@ import { useRouter } from "next/navigation";
 import { MapPin, Star, Heart } from "lucide-react";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
+import { priceLevelLabel } from "@/lib/price-utils";
+
 
 interface Props {
   venue: any;
@@ -27,16 +29,8 @@ export function VenueDiscoverCard({
   const router = useRouter();
   const qc = useQueryClient();
   // Price: vendor minimum spend → cheapest menu item → Google price level estimate
-  const rawPriceLevel = venue.google_data?.price_level;
-  const priceLevelNum = typeof rawPriceLevel === "number"
-    ? rawPriceLevel
-    : typeof rawPriceLevel === "string"
-    ? ({ "PRICE_LEVEL_INEXPENSIVE": 1, "PRICE_LEVEL_MODERATE": 2, "PRICE_LEVEL_EXPENSIVE": 3, "PRICE_LEVEL_VERY_EXPENSIVE": 4 } as any)[rawPriceLevel] ?? null
-    : null;
   const price = venue.minimum_spend || cheapestMenuPrice || null;
-  const googlePriceLabel = !price && priceLevelNum
-    ? "₦".repeat(priceLevelNum)
-    : null;
+  const googlePriceLabel = !price ? priceLevelLabel(venue.google_data?.price_level) : null;
 
   const { data: savedRecord } = useQuery({
     queryKey: ["saved-venue", venue.id, user?.id],

@@ -11,37 +11,31 @@ const supabaseAdmin = createClient(
 const GOOGLE_API_KEY = process.env.GOOGLE_PLACES_API_KEY!;
 
 const SEARCH_QUERIES = [
-  // Lagos bars & lounges
   { query: "bars in Victoria Island Lagos Nigeria",    category: "bar-lounge" },
   { query: "bars in Lekki Lagos Nigeria",              category: "bar-lounge" },
   { query: "rooftop bars Lagos Nigeria",               category: "bar-lounge" },
   { query: "lounges in Ikeja Lagos Nigeria",           category: "bar-lounge" },
   { query: "sports bars Lagos Nigeria",                category: "bar-lounge" },
-  // Lagos clubs
   { query: "nightclubs in Victoria Island Lagos",      category: "club"       },
   { query: "nightclubs in Lekki Lagos Nigeria",        category: "club"       },
   { query: "clubs in Ikeja Lagos Nigeria",             category: "club"       },
-  // Lagos restaurants
   { query: "restaurants in Victoria Island Lagos",     category: "restaurant" },
   { query: "restaurants in Lekki Phase 1 Lagos",       category: "restaurant" },
   { query: "restaurants in Ikoyi Lagos Nigeria",       category: "restaurant" },
   { query: "fine dining restaurants Lagos Nigeria",    category: "restaurant" },
   { query: "Nigerian restaurants Lagos",               category: "restaurant" },
-  // Port Harcourt
   { query: "bars in Port Harcourt Nigeria",            category: "bar-lounge" },
   { query: "lounges in Port Harcourt Nigeria",         category: "bar-lounge" },
   { query: "nightclubs Port Harcourt Nigeria",         category: "club"       },
   { query: "restaurants in Port Harcourt Nigeria",     category: "restaurant" },
   { query: "restaurants in GRA Port Harcourt",         category: "restaurant" },
   { query: "bars in GRA Port Harcourt Nigeria",        category: "bar-lounge" },
-  // Abuja
   { query: "bars in Abuja Nigeria",                    category: "bar-lounge" },
   { query: "lounges in Wuse Abuja Nigeria",            category: "bar-lounge" },
   { query: "clubs in Abuja Nigeria",                   category: "club"       },
   { query: "restaurants in Wuse 2 Abuja Nigeria",      category: "restaurant" },
   { query: "restaurants in Maitama Abuja Nigeria",     category: "restaurant" },
   { query: "restaurants in Garki Abuja Nigeria",       category: "restaurant" },
-  // Hotels
   { query: "hotels in Victoria Island Lagos Nigeria",  category: "hotel"      },
   { query: "hotels in Lekki Lagos Nigeria",            category: "hotel"      },
   { query: "hotels in Ikeja Lagos Nigeria",            category: "hotel"      },
@@ -52,64 +46,10 @@ const SEARCH_QUERIES = [
   { query: "luxury hotels Lagos Nigeria",              category: "hotel"      },
 ];
 
-async function fetchPlaceDetails(placeId: string) {
-  // Places API (New) — richer data, correct field names
-  const fieldMask = [
-    "id","displayName","formattedAddress","location",
-    "photos","rating","userRatingCount","regularOpeningHours",
-    "nationalPhoneNumber","websiteUri","types","shortFormattedAddress",
-    "addressComponents","reviews","priceLevel",
-    "editorialSummary","servesBeer","servesWine","servesCocktails",
-    "dineIn","takeout","delivery","reservable",
-    "accessibilityOptions",
-  ].join(",");
-
-  const url = `https://places.googleapis.com/v1/places/${placeId}`;
-  const res = await fetch(url, {
-    headers: {
-      "X-Goog-Api-Key": GOOGLE_API_KEY,
-      "X-Goog-FieldMask": fieldMask,
-    },
-  });
-  const data = await res.json();
-  if (data.error) {
-    console.error("Place detail error:", placeId, data.error.status, data.error.message);
-    return null;
-  }
-  return data;
-}
-
-async function searchPlaces(query: string) {
-  const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${GOOGLE_API_KEY}`;
-  const res = await fetch(url);
-  const data = await res.json();
-  return data.results || [];
-}
-
-function getPhotoUrl(photoName: string, maxWidth = 800) {
-  // New API uses photo resource name like "places/xxx/photos/xxx"
-  if (photoName.startsWith("places/")) {
-    return `https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=${maxWidth}&key=${GOOGLE_API_KEY}`;
-  }
-  // Fallback for old photo_reference format
-  return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${maxWidth}&photo_reference=${photoName}&key=${GOOGLE_API_KEY}`;
-}
-
-function extractCity(addressComponents: any[]): string {
-  if (!addressComponents) return "Lagos";
-  // New API uses longText instead of long_name
-  const locality = addressComponents.find((c: any) =>
-    c.types?.includes("locality")
-  );
-  const adminArea = addressComponents.find((c: any) =>
-    c.types?.includes("administrative_area_level_1")
-  );
-  return locality?.longText || locality?.long_name || adminArea?.longText || adminArea?.long_name || "Lagos";
-}
-
+// Convert Places API (New) price level string to number 1-4
 function priceLevelToNumber(priceLevel: any): number | null {
   if (!priceLevel) return null;
-  if (typeof priceLevel === "number") return priceLevel;
+  if (typeof priceLevel === "number") return priceLevel > 0 ? priceLevel : null;
   const map: Record<string, number> = {
     "PRICE_LEVEL_FREE":           0,
     "PRICE_LEVEL_INEXPENSIVE":    1,
@@ -136,7 +76,7 @@ function buildGoogleData(details: any) {
     delivery:              details.delivery || false,
     reservable:            details.reservable || false,
     wheelchair_accessible: details.accessibilityOptions?.wheelchairAccessibleEntrance || false,
-    reviews:               (details.reviews || []).slice(0, 5).map((r: any) => ({
+    reviews: (details.reviews || []).slice(0, 5).map((r: any) => ({
       author: r.authorAttribution?.displayName,
       rating: r.rating,
       text:   r.text?.text,
@@ -146,7 +86,6 @@ function buildGoogleData(details: any) {
   };
 }
 
-// Build filterable tags from Google data so genre/vibe filters work
 function buildGoogleFilters(details: any): string[] {
   const tags: string[] = [];
   if (details.servesCocktails) tags.push("Cocktails");
@@ -157,16 +96,61 @@ function buildGoogleFilters(details: any): string[] {
   if (details.delivery)        tags.push("Delivery");
   if (details.reservable)      tags.push("Reservations");
   if (details.accessibilityOptions?.wheelchairAccessibleEntrance) tags.push("Accessible");
-  // Map Google types to Chillz vibe tags
   const types = (details.types || []) as string[];
-  if (types.includes("night_club"))  tags.push("Live DJ");
-  if (types.includes("bar"))         tags.push("Cocktails");
-  if (types.includes("restaurant"))  tags.push("Dine In");
-  return [...new Set(tags)]; // deduplicate
+  if (types.includes("night_club")) tags.push("Live DJ");
+  if (types.includes("bar"))        tags.push("Cocktails");
+  if (types.includes("restaurant")) tags.push("Dine In");
+  return [...new Set(tags)];
+}
+
+async function fetchPlaceDetails(placeId: string) {
+  const fieldMask = [
+    "id","displayName","formattedAddress","location",
+    "photos","rating","userRatingCount","regularOpeningHours",
+    "nationalPhoneNumber","websiteUri","types","shortFormattedAddress",
+    "addressComponents","reviews","priceLevel",
+    "editorialSummary","servesBeer","servesWine","servesCocktails",
+    "dineIn","takeout","delivery","reservable","accessibilityOptions",
+  ].join(",");
+
+  const url = `https://places.googleapis.com/v1/places/${placeId}`;
+  const res = await fetch(url, {
+    headers: {
+      "X-Goog-Api-Key":  GOOGLE_API_KEY,
+      "X-Goog-FieldMask": fieldMask,
+    },
+  });
+  const data = await res.json();
+  if (data.error) {
+    console.error("Place detail error:", placeId, data.error.status, data.error.message);
+    return null;
+  }
+  return data;
+}
+
+async function searchPlaces(query: string) {
+  const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${GOOGLE_API_KEY}`;
+  const res  = await fetch(url);
+  const data = await res.json();
+  return data.results || [];
+}
+
+function getPhotoUrl(photoName: string, maxWidth = 800) {
+  if (photoName.startsWith("places/")) {
+    return `https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=${maxWidth}&key=${GOOGLE_API_KEY}`;
+  }
+  return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${maxWidth}&photo_reference=${photoName}&key=${GOOGLE_API_KEY}`;
+}
+
+function extractCity(addressComponents: any[]): string {
+  if (!addressComponents) return "Lagos";
+  const locality  = addressComponents.find((c: any) => c.types?.includes("locality"));
+  const adminArea = addressComponents.find((c: any) => c.types?.includes("administrative_area_level_1"));
+  return locality?.longText || locality?.long_name || adminArea?.longText || adminArea?.long_name || "Lagos";
 }
 
 export async function POST(req: NextRequest) {
-  const authHeader = req.headers.get("authorization");
+  const authHeader  = req.headers.get("authorization");
   const adminSecret = process.env.ADMIN_SECRET || "chillz-admin-2024";
   if (authHeader !== `Bearer ${adminSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -182,7 +166,7 @@ export async function POST(req: NextRequest) {
     venues:   [] as string[],
   };
 
-  // ── UPDATE MODE — re-fetch details for existing Google venues ──
+  // ── UPDATE MODE ──────────────────────────────────────────────────────
   if (isUpdate) {
     const { data: existingVenues } = await (supabaseAdmin.from("venues") as any)
       .select("id, google_place_id, name")
@@ -191,28 +175,19 @@ export async function POST(req: NextRequest) {
 
     console.log("UPDATE: found", existingVenues?.length, "venues to update");
 
-    // Test one place detail fetch first
     if (existingVenues?.length > 0) {
       const testVenue = existingVenues[0];
-      const testUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${testVenue.google_place_id}&fields=place_id,name,rating&key=${GOOGLE_API_KEY}`;
-      const testRes = await fetch(testUrl);
-      const testData = await testRes.json();
-      console.log("PLACE DETAIL TEST:", testData.status, testData.error_message || "");
-      if (testData.status !== "OK") {
-        return NextResponse.json({
-          error: `Place Details API error: ${testData.status} — ${testData.error_message || "check billing or API key restrictions"}`,
-        });
+      const testRes   = await fetchPlaceDetails(testVenue.google_place_id);
+      if (!testRes) {
+        return NextResponse.json({ error: "Place Details API failed on test venue — check API key" });
       }
+      console.log("PLACE DETAIL TEST: OK");
     }
 
     for (const venue of (existingVenues || [])) {
       try {
         const details = await fetchPlaceDetails(venue.google_place_id);
-        if (!details) { 
-          console.error("No details returned for:", venue.name, venue.google_place_id);
-          results.errors++; 
-          continue; 
-        }
+        if (!details) { results.errors++; continue; }
 
         const images = (details.photos || [])
           .slice(0, 6)
@@ -248,9 +223,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(results);
   }
 
-  // ── SEED MODE — test Google API then insert new venues ──
-  const testUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=bars+in+Lagos+Nigeria&key=${GOOGLE_API_KEY}`;
-  const testRes = await fetch(testUrl);
+  // ── SEED MODE ────────────────────────────────────────────────────────
+  const testUrl  = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=bars+in+Lagos+Nigeria&key=${GOOGLE_API_KEY}`;
+  const testRes  = await fetch(testUrl);
   const testData = await testRes.json();
   console.log("GOOGLE TEST STATUS:", testData.status);
   if (testData.status !== "OK") {
@@ -285,10 +260,10 @@ export async function POST(req: NextRequest) {
             for (const period of details.regularOpeningHours.periods) {
               const dayName = days[period.open?.day ?? 0];
               if (dayName) {
-                const openH = String(period.open?.hour ?? 0).padStart(2,"0");
-                const openM = String(period.open?.minute ?? 0).padStart(2,"0");
-                const closeH = String(period.close?.hour ?? 0).padStart(2,"0");
-                const closeM = String(period.close?.minute ?? 0).padStart(2,"0");
+                const openH  = String(period.open?.hour   ?? 0).padStart(2, "0");
+                const openM  = String(period.open?.minute ?? 0).padStart(2, "0");
+                const closeH = String(period.close?.hour   ?? 0).padStart(2, "0");
+                const closeM = String(period.close?.minute ?? 0).padStart(2, "0");
                 openingHours[dayName] = {
                   open:   `${openH}:${openM}`,
                   close:  `${closeH}:${closeM}`,
@@ -303,7 +278,7 @@ export async function POST(req: NextRequest) {
               name:             details.displayName?.text || details.name,
               address:          details.formattedAddress,
               category,
-              lat:              details.location?.latitude || null,
+              lat:              details.location?.latitude  || null,
               lng:              details.location?.longitude || null,
               images,
               rating:           details.rating || null,
@@ -322,11 +297,11 @@ export async function POST(req: NextRequest) {
             });
 
           if (insertError) {
-            console.error(`Failed to insert ${details.name}:`, insertError.message);
+            console.error(`Failed to insert ${details.displayName?.text}:`, insertError.message);
             results.errors++;
           } else {
             results.inserted++;
-            results.venues.push(details.name);
+            results.venues.push(details.displayName?.text || "");
           }
 
           await new Promise(r => setTimeout(r, 200));

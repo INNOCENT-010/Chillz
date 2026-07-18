@@ -228,7 +228,7 @@ export default function BarLoungePage() {
       <div style={{padding:"16px"}}>
         {isLoading?(
           <div style={{display:"flex",flexDirection:"column",gap:14}}>{Array.from({length:4}).map((_,i)=><div key={i} style={{height:260,borderRadius:20,backgroundColor:"#F2EEF9"}}/>)}</div>
-        ):filtered.length===0?(
+        ):filtered.length===0&&!isFetchingMore?(
           <div style={{textAlign:"center",paddingTop:80}}>
             <div style={{fontSize:48,marginBottom:16}}>{showSaved?"❤️":CATEGORY_EMOJI}</div>
             <p style={{fontWeight:800,fontSize:16,color:"#0A0A0A",margin:"0 0 6px"}}>{showSaved?"No saved venues yet":"No spots found"}</p>
