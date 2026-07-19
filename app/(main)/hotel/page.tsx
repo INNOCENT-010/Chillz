@@ -8,10 +8,11 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, X, MapPin, SlidersHorizontal, ArrowLeft,
-  Heart, ChevronDown, Star, Wifi, Car, Waves,
-  Dumbbell, Coffee, Shield, CheckCircle, Zap, Snowflake,
+  Heart, Star, Wifi, Waves,
+  Dumbbell, Coffee, ChevronDown, Shield, CheckCircle, Zap, Snowflake,
   Wind, Tv, UtensilsCrossed, Bus, ParkingCircle,
 } from "lucide-react";
+import { LocationHeader } from "@/components/home/location-header";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth";
@@ -310,8 +311,18 @@ export default function HotelPage() {
   const [isLoading,      setIsLoading]      = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [hasMore,        setHasMore]        = useState(true);
-  const [currentPage,    setCurrentPage]    = useState(0);
+  const [phase,          setPhase]          = useState<"neighbourhood"|"city"|"national">("neighbourhood");
+  const [phasePageNum,   setPhasePageNum]   = useState(0);
+  const [seenIds,        setSeenIds]        = useState<Set<string>>(new Set());
+  const [showNationalDivider, setShowNationalDivider] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  function parseLocation(loc: string): { neighbourhood: string | null; city: string | null } {
+    if (!loc || loc === "__everywhere__") return { neighbourhood: null, city: null };
+    const parts = loc.split(",").map(s => s.trim()).filter(Boolean);
+    if (parts.length === 1) return { neighbourhood: null, city: parts[0] };
+    return { neighbourhood: parts[0], city: parts[1] };
+  }
 
   const buildVendors = async (venues: any[]) => {
     if (!venues.length) return [];
@@ -346,35 +357,92 @@ export default function HotelPage() {
     });
   };
 
-  const fetchPage = async (pageNum: number) => {
+  const fetchPhase = async (
+    currentPhase: "neighbourhood"|"city"|"national",
+    pageNum: number,
+    city: string,
+    currentSeenIds: Set<string>
+  ) => {
     const from = pageNum * PAGE_SIZE;
-    const { data } = await (supabase.from("venues") as any)
+    const { neighbourhood, city: cityName } = parseLocation(city);
+    let query = (supabase.from("venues") as any)
       .select("id,name,address,images,rating,review_count,filters,lat,lng,is_featured,created_at,vendor_id")
       .eq("is_active", true).eq("category", "hotel")
       .order("rating", { ascending: false })
       .range(from, from + PAGE_SIZE - 1);
-    return (data||[]) as any[];
+    if (currentPhase === "neighbourhood" && neighbourhood) {
+      query = query.or(`address.ilike.%${neighbourhood}%,city.ilike.%${neighbourhood}%`);
+    } else if (currentPhase === "city" && cityName) {
+      query = query.or(`address.ilike.%${cityName}%,city.ilike.%${cityName}%`);
+    }
+    const { data } = await query;
+    return ((data||[]) as any[]).filter((v:any) => !currentSeenIds.has(v.id));
   };
 
-  useEffect(() => {
+  const initFetch = async (city: string) => {
     setIsLoading(true);
-    fetchPage(0).then(async venues => {
-      const built = await buildVendors(venues);
-      setVendors(built);
-      setHasMore(venues.length === PAGE_SIZE);
-      setIsLoading(false);
-    });
-  }, []);
+    setVendors([]);
+    setSeenIds(new Set());
+    setShowNationalDivider(false);
+    const { neighbourhood, city: cityName } = parseLocation(city);
+    const startPhase: "neighbourhood"|"city"|"national" =
+      !neighbourhood && !cityName ? "national" : neighbourhood ? "neighbourhood" : "city";
+    setPhase(startPhase);
+    setPhasePageNum(0);
+    const venues = await fetchPhase(startPhase, 0, city, new Set());
+    const built  = await buildVendors(venues);
+    setVendors(built);
+    setSeenIds(new Set(venues.map((v:any) => v.id)));
+    setHasMore(venues.length === PAGE_SIZE || (venues.length < PAGE_SIZE && startPhase !== "national"));
+    setIsLoading(false);
+  };
+
+  useEffect(() => { initFetch(userCity); }, [userCity]);
 
   const loadMore = async () => {
     if (isFetchingMore || !hasMore) return;
     setIsFetchingMore(true);
-    const next = currentPage + 1;
-    const venues = await fetchPage(next);
-    const built  = await buildVendors(venues);
-    setVendors(prev => [...prev, ...built]);
-    setHasMore(venues.length === PAGE_SIZE);
-    setCurrentPage(next);
+    const { city: cityName } = parseLocation(userCity);
+    let currentPhase: "neighbourhood" | "city" | "national" = phase;
+    let currentPageNum = phasePageNum + 1;
+
+    let venues = await fetchPhase(currentPhase, currentPageNum, userCity, seenIds);
+
+    if (venues.length < PAGE_SIZE) {
+      if (currentPhase === "neighbourhood") {
+        if (cityName) {
+          currentPhase = "city";
+          currentPageNum = 0;
+          venues = await fetchPhase(currentPhase, currentPageNum, userCity, seenIds);
+          if (venues.length < PAGE_SIZE) {
+            currentPhase = "national";
+            currentPageNum = 0;
+            setShowNationalDivider(true);
+            venues = await fetchPhase(currentPhase, currentPageNum, userCity, seenIds);
+          }
+        } else {
+          currentPhase = "national";
+          currentPageNum = 0;
+          setShowNationalDivider(true);
+          venues = await fetchPhase(currentPhase, currentPageNum, userCity, seenIds);
+        }
+      } else if (currentPhase === "city") {
+        currentPhase = "national";
+        currentPageNum = 0;
+        setShowNationalDivider(true);
+        venues = await fetchPhase(currentPhase, currentPageNum, userCity, seenIds);
+      }
+      // national exhausted → hasMore becomes false
+    }
+
+    if (venues.length > 0) {
+      const built = await buildVendors(venues);
+      setVendors(prev => [...prev, ...built]);
+      setSeenIds(prev => { const s = new Set(prev); venues.forEach((v:any) => s.add(v.id)); return s; });
+    }
+    setPhase(currentPhase);
+    setPhasePageNum(currentPageNum);
+    setHasMore(venues.length > 0);
     setIsFetchingMore(false);
   };
 
@@ -387,7 +455,7 @@ export default function HotelPage() {
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [isFetchingMore, hasMore, currentPage]);
+  }, [isFetchingMore, hasMore, phase, phasePageNum, seenIds, userCity]);
 
   // ── Saved — persisted to DB ───────────────────────────────────────────
   const { data: savedVenueIds = [] } = useQuery({
@@ -502,13 +570,17 @@ export default function HotelPage() {
                 <X size={10} style={{ color:"#EF4444" }}/><span style={{ fontSize:11, fontWeight:700, color:"#EF4444" }}>Clear</span>
               </button>
             )}
-            <LocationPill onCityResolved={(c) => {
-              setUserCity(c);
-              navigator.geolocation?.getCurrentPosition(
-                (pos) => { setUserLat(pos.coords.latitude); setUserLng(pos.coords.longitude); },
-                () => {}
-              );
-            }}/>
+            <LocationHeader
+              onLocationResolved={(city) => {
+                setUserCity(city === "__everywhere__" ? "__everywhere__" : city);
+                if (city !== "__everywhere__") {
+                  navigator.geolocation?.getCurrentPosition(
+                    (pos) => { setUserLat(pos.coords.latitude); setUserLng(pos.coords.longitude); },
+                    () => {}
+                  );
+                }
+              }}
+            />
           </div>
         </div>
 
@@ -625,6 +697,12 @@ export default function HotelPage() {
         </AnimatePresence>
       </div>
 
+      {showNationalDivider && vendors.length > 0 && (
+        <div style={{ margin:"8px 16px 0", backgroundColor:"#FEF3C7", borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", gap:8 }}>
+          <span style={{ fontSize:16 }}>🇳🇬</span>
+          <p style={{ fontSize:12, fontWeight:700, color:"#D97706", margin:0 }}>More from across Nigeria</p>
+        </div>
+      )}
       <div style={{ padding:"16px" }}>
         {isLoading ? (
           <div style={{ display:"flex", flexDirection:"column", gap:14 }}>

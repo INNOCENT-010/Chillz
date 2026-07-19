@@ -8,9 +8,10 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, X, MapPin, SlidersHorizontal, ArrowLeft,
-  Heart, ChevronDown, Star, Home, Wifi, Car, Waves,
-  Dumbbell, Coffee, Shield, CheckCircle, Zap, Snowflake,
+  Heart, Star, Home, Wifi, Car, Waves,
+  Dumbbell, Coffee, ChevronDown, Shield, CheckCircle, Zap, Snowflake,
 } from "lucide-react";
+import { LocationHeader } from "@/components/home/location-header";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth";
@@ -204,31 +205,7 @@ function AptCard({ vendor }: { vendor: any }) {
   );
 }
 
-function LocationPill({ onCityResolved }: { onCityResolved: (c: string) => void }) {
-  const [display,   setDisplay]   = useState("Lagos");
-  const [detecting, setDetecting] = useState(false);
-  useEffect(() => {
-    setDetecting(true);
-    navigator.geolocation?.getCurrentPosition(async (pos) => {
-      try {
-        const r = await fetch(`/api/places/geocode?lat=${pos.coords.latitude}&lng=${pos.coords.longitude}`);
-        const d = await r.json();
-        const loc = (d.location || "Lagos").split(",")[0].trim();
-        setDisplay(loc); onCityResolved(loc);
-      } catch { setDisplay("Lagos"); onCityResolved("Lagos"); }
-      finally   { setDetecting(false); }
-    }, () => { setDisplay("Lagos"); onCityResolved("Lagos"); setDetecting(false); });
-  }, []);
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
-      <MapPin size={13} style={{ color: ACCENT, flexShrink: 0 }} strokeWidth={2.5} />
-      <span style={{ fontSize: 12, fontWeight: 700, color: "#0A0A0A", maxWidth: 90, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
-        {detecting ? "..." : display}
-      </span>
-      <ChevronDown size={12} style={{ color: "#9E9E9E", flexShrink: 0 }} />
-    </div>
-  );
-}
+
 
 function Section({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
   return (
@@ -297,58 +274,156 @@ export default function ApartmentsPage() {
     setDuration(null);
   };
 
-  const { data: vendors, isLoading } = useQuery({
-    queryKey: ["discover-apartments"],
-    queryFn: async () => {
-      const { data: venues } = await (supabase.from("venues") as any)
-        .select("id,name,address,images,rating,review_count,filters,lat,lng,is_featured,created_at,vendor_id")
-        .eq("is_active", true)
-        .eq("category", "apartment")
-        .order("rating", { ascending: false })
-        .limit(60);
+  const PAGE_SIZE = 16;
+  const [vendors,        setVendors]        = useState<any[]>([]);
+  const [isLoading,      setIsLoading]      = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [hasMore,        setHasMore]        = useState(true);
+  const [phase,          setPhase]          = useState<"neighbourhood"|"city"|"national">("neighbourhood");
+  const [phasePageNum,   setPhasePageNum]   = useState(0);
+  const [seenIds,        setSeenIds]        = useState<Set<string>>(new Set());
+  const [showNationalDivider, setShowNationalDivider] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
-      if (!venues?.length) return [];
+  function parseLocation(loc: string): { neighbourhood: string | null; city: string | null } {
+    if (!loc || loc === "__everywhere__") return { neighbourhood: null, city: null };
+    const parts = loc.split(",").map(s => s.trim()).filter(Boolean);
+    if (parts.length === 1) return { neighbourhood: null, city: parts[0] };
+    return { neighbourhood: parts[0], city: parts[1] };
+  }
 
-      const vendorIds = (venues as any[]).filter((v: any) => v.vendor_id).map((v: any) => v.vendor_id);
-      let vendorMap: Record<string, any> = {};
-      if (vendorIds.length) {
-        const { data: vds } = await (supabase.from("vendors") as any)
-          .select("id,business_name,description")
-          .in("id", vendorIds);
-        (vds || []).forEach((v: any) => { vendorMap[v.id] = v; });
-      }
-
-      let listingMap: Record<string, any[]> = {};
-      let priceMap:   Record<string, number> = {};
-      if (vendorIds.length) {
-        const { data: listings } = await (supabase.from("vendor_listings") as any)
-          .select("vendor_id,price_per_unit,amenities,room_type,min_nights,images,unit_label")
-          .in("vendor_id", vendorIds)
-          .eq("is_active", true);
-        (listings || []).forEach((l: any) => {
-          if (!listingMap[l.vendor_id]) listingMap[l.vendor_id] = [];
-          listingMap[l.vendor_id].push(l);
-          if (!priceMap[l.vendor_id] || l.price_per_unit < priceMap[l.vendor_id]) {
-            priceMap[l.vendor_id] = l.price_per_unit;
-          }
-        });
-      }
-
-      return (venues as any[]).map((venue: any) => {
-        const vd = vendorMap[venue.vendor_id] || {};
-        return {
-          id:             vd.id || venue.vendor_id || venue.id,
-          venueId:        venue.id,
-          business_name:  vd.business_name || venue.name,
-          description:    vd.description   || null,
-          starting_price: priceMap[venue.vendor_id] || null,
-          listings:       listingMap[venue.vendor_id] || [],
-          venue,
-        };
+  const buildVendors = async (venues: any[]) => {
+    if (!venues.length) return [];
+    const vendorIds = venues.filter((v:any) => v.vendor_id).map((v:any) => v.vendor_id);
+    let vendorMap: Record<string,any> = {};
+    let listingMap: Record<string,any[]> = {};
+    let priceMap: Record<string,number> = {};
+    if (vendorIds.length) {
+      const { data: vds } = await (supabase.from("vendors") as any)
+        .select("id,business_name,description").in("id", vendorIds);
+      (vds||[]).forEach((v:any) => { vendorMap[v.id] = v; });
+      const { data: listings } = await (supabase.from("vendor_listings") as any)
+        .select("vendor_id,price_per_unit,amenities,room_type,min_nights,images,unit_label")
+        .in("vendor_id", vendorIds).eq("is_active", true);
+      (listings||[]).forEach((l:any) => {
+        if (!listingMap[l.vendor_id]) listingMap[l.vendor_id] = [];
+        listingMap[l.vendor_id].push(l);
+        if (!priceMap[l.vendor_id]||l.price_per_unit<priceMap[l.vendor_id]) priceMap[l.vendor_id]=l.price_per_unit;
       });
-    },
-    staleTime: 1000 * 60,
-  });
+    }
+    return venues.map((venue:any) => {
+      const vd = vendorMap[venue.vendor_id] || {};
+      return {
+        id: vd.id || venue.vendor_id || venue.id,
+        venueId: venue.id,
+        business_name: vd.business_name || venue.name,
+        description: vd.description || null,
+        starting_price: priceMap[venue.vendor_id] || null,
+        listings: listingMap[venue.vendor_id] || [],
+        venue,
+      };
+    });
+  };
+
+  const fetchPhase = async (
+    currentPhase: "neighbourhood"|"city"|"national",
+    pageNum: number,
+    city: string,
+    currentSeenIds: Set<string>
+  ) => {
+    const from = pageNum * PAGE_SIZE;
+    const { neighbourhood, city: cityName } = parseLocation(city);
+    let query = (supabase.from("venues") as any)
+      .select("id,name,address,images,rating,review_count,filters,lat,lng,is_featured,created_at,vendor_id")
+      .eq("is_active", true).eq("category", "apartment")
+      .order("rating", { ascending: false })
+      .range(from, from + PAGE_SIZE - 1);
+    if (currentPhase === "neighbourhood" && neighbourhood) {
+      query = query.or(`address.ilike.%${neighbourhood}%,city.ilike.%${neighbourhood}%`);
+    } else if (currentPhase === "city" && cityName) {
+      query = query.or(`address.ilike.%${cityName}%,city.ilike.%${cityName}%`);
+    }
+    const { data } = await query;
+    return ((data||[]) as any[]).filter((v:any) => !currentSeenIds.has(v.id));
+  };
+
+  const initFetch = async (city: string) => {
+    setIsLoading(true);
+    setVendors([]);
+    setSeenIds(new Set());
+    setShowNationalDivider(false);
+    const { neighbourhood, city: cityName } = parseLocation(city);
+    const startPhase: "neighbourhood"|"city"|"national" =
+      !neighbourhood && !cityName ? "national" : neighbourhood ? "neighbourhood" : "city";
+    setPhase(startPhase);
+    setPhasePageNum(0);
+    const venues = await fetchPhase(startPhase, 0, city, new Set());
+    const built  = await buildVendors(venues);
+    setVendors(built);
+    setSeenIds(new Set(venues.map((v:any) => v.id)));
+    setHasMore(venues.length === PAGE_SIZE || (venues.length < PAGE_SIZE && startPhase !== "national"));
+    setIsLoading(false);
+  };
+
+  useEffect(() => { initFetch(userCity); }, [userCity]);
+
+  const loadMore = async () => {
+    if (isFetchingMore || !hasMore) return;
+    setIsFetchingMore(true);
+    const { city: cityName } = parseLocation(userCity);
+    let currentPhase: "neighbourhood" | "city" | "national" = phase;
+    let currentPageNum = phasePageNum + 1;
+
+    let venues = await fetchPhase(currentPhase, currentPageNum, userCity, seenIds);
+
+    if (venues.length < PAGE_SIZE) {
+      if (currentPhase === "neighbourhood") {
+        if (cityName) {
+          currentPhase = "city";
+          currentPageNum = 0;
+          venues = await fetchPhase(currentPhase, currentPageNum, userCity, seenIds);
+          if (venues.length < PAGE_SIZE) {
+            currentPhase = "national";
+            currentPageNum = 0;
+            setShowNationalDivider(true);
+            venues = await fetchPhase(currentPhase, currentPageNum, userCity, seenIds);
+          }
+        } else {
+          currentPhase = "national";
+          currentPageNum = 0;
+          setShowNationalDivider(true);
+          venues = await fetchPhase(currentPhase, currentPageNum, userCity, seenIds);
+        }
+      } else if (currentPhase === "city") {
+        currentPhase = "national";
+        currentPageNum = 0;
+        setShowNationalDivider(true);
+        venues = await fetchPhase(currentPhase, currentPageNum, userCity, seenIds);
+      }
+      // national exhausted → hasMore becomes false
+    }
+
+    if (venues.length > 0) {
+      const built = await buildVendors(venues);
+      setVendors(prev => [...prev, ...built]);
+      setSeenIds(prev => { const s = new Set(prev); venues.forEach((v:any) => s.add(v.id)); return s; });
+    }
+    setPhase(currentPhase);
+    setPhasePageNum(currentPageNum);
+    setHasMore(venues.length > 0);
+    setIsFetchingMore(false);
+  };
+
+  useEffect(() => {
+    const el = bottomRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      entries => { if (entries[0].isIntersecting && !isFetchingMore && hasMore) loadMore(); },
+      { threshold: 0.1 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isFetchingMore, hasMore, phase, phasePageNum, seenIds, userCity]);
 
   const { data: savedVenueIds } = useQuery({
     queryKey: ["saved-venues", user?.id, "apartment"],
@@ -510,13 +585,17 @@ export default function ApartmentsPage() {
                 <X size={10} style={{ color: "#EF4444" }} /><span style={{ fontSize: 11, fontWeight: 700, color: "#EF4444" }}>Clear</span>
               </button>
             )}
-            <LocationPill onCityResolved={(c) => {
-              setUserCity(c);
-              navigator.geolocation?.getCurrentPosition(
-                (pos) => { setUserLat(pos.coords.latitude); setUserLng(pos.coords.longitude); },
-                () => {}
-              );
-            }} />
+            <LocationHeader
+              onLocationResolved={(city) => {
+                setUserCity(city === "__everywhere__" ? "__everywhere__" : city);
+                if (city !== "__everywhere__") {
+                  navigator.geolocation?.getCurrentPosition(
+                    (pos) => { setUserLat(pos.coords.latitude); setUserLng(pos.coords.longitude); },
+                    () => {}
+                  );
+                }
+              }}
+            />
           </div>
         </div>
 
@@ -712,6 +791,22 @@ export default function ApartmentsPage() {
           </>
         )}
       </div>
+    {showNationalDivider && vendors.length > 0 && (
+        <div style={{ margin:"8px 16px 0", backgroundColor:"#DBEAFE", borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", gap:8 }}>
+          <span style={{ fontSize:16 }}>🇳🇬</span>
+          <p style={{ fontSize:12, fontWeight:700, color:"#2563EB", margin:0 }}>More from across Nigeria</p>
+        </div>
+      )}
+      <div ref={bottomRef} style={{ height:1 }}/>
+      {isFetchingMore && (
+        <div style={{ display:"flex", justifyContent:"center", padding:"20px 0" }}>
+          <div style={{ width:24, height:24, borderRadius:"50%", border:`2.5px solid ${ACCENT_BG}`, borderTopColor:ACCENT, animation:"spin 0.8s linear infinite" }}/>
+        </div>
+      )}
+      {!hasMore && vendors.length > 0 && (
+        <p style={{ textAlign:"center", fontSize:12, color:"#C4BAD8", padding:"16px 0 32px" }}>You've seen all apartments ✓</p>
+      )}
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </MainLayout>
   );
 }

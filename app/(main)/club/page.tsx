@@ -6,9 +6,10 @@ import { supabase } from "@/lib/supabase";
 import { MainLayout } from "@/components/layout/main-layout";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, X, MapPin, SlidersHorizontal, ArrowLeft, Heart, ChevronDown } from "lucide-react";
+import { Search, X, MapPin, SlidersHorizontal, ChevronDown, ArrowLeft, Heart } from "lucide-react";
 import { VenueDiscoverCard } from "@/components/discover/venue-discover-card";
 import { useAuthStore } from "@/store/auth";
+import { LocationHeader } from "@/components/home/location-header";
 
 const CATEGORY="club"; const CATEGORY_LABEL="Clubs"; const CATEGORY_EMOJI="🎵";
 const ACCENT="#5B0EA6"; const ACCENT_BG="#EDE0F7";
@@ -42,48 +43,44 @@ export default function ClubPage(){
   const [isLoading,      setIsLoading]      = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [hasMore,        setHasMore]        = useState(true);
-  const [currentPage,    setCurrentPage]    = useState(0);
+  const [phase,          setPhase]          = useState<"neighbourhood"|"city"|"national">("neighbourhood");
+  const [phasePageNum,   setPhasePageNum]   = useState(0);
+  const [seenIds,        setSeenIds]        = useState<Set<string>>(new Set());
+  const [showNationalDivider, setShowNationalDivider] = useState(false);
   const [menuPrices,     setMenuPrices]     = useState<Record<string,number>>({});
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const fetchPage = async (pageNum: number) => {
+  function parseLocation(loc: string): { neighbourhood: string | null; city: string | null } {
+    if (!loc || loc === "__everywhere__") return { neighbourhood: null, city: null };
+    const parts = loc.split(",").map(s => s.trim()).filter(Boolean);
+    if (parts.length === 1) return { neighbourhood: null, city: parts[0] };
+    return { neighbourhood: parts[0], city: parts[1] };
+  }
+
+  const fetchPhase = async (
+    currentPhase: "neighbourhood"|"city"|"national",
+    pageNum: number,
+    city: string,
+    currentSeenIds: Set<string>
+  ) => {
     const from = pageNum * PAGE_SIZE;
-    const { data } = await (supabase.from("venues") as any)
+    const { neighbourhood, city: cityName } = parseLocation(city);
+    let query = (supabase.from("venues") as any)
       .select("*,google_data")
       .eq("is_active", true)
       .eq("category", CATEGORY)
       .order("rating", { ascending: false })
       .range(from, from + PAGE_SIZE - 1);
-    return (data || []) as any[];
+    if (currentPhase === "neighbourhood" && neighbourhood) {
+      query = query.or(`address.ilike.%${neighbourhood}%,city.ilike.%${neighbourhood}%`);
+    } else if (currentPhase === "city" && cityName) {
+      query = query.or(`address.ilike.%${cityName}%,city.ilike.%${cityName}%`);
+    }
+    const { data } = await query;
+    return ((data || []) as any[]).filter((v: any) => !currentSeenIds.has(v.id));
   };
 
-  useEffect(() => {
-    setIsLoading(true);
-    fetchPage(0).then(data => {
-      setAllVenues(data);
-      setHasMore(data.length === PAGE_SIZE);
-      setIsLoading(false);
-      const vids = data.filter((v:any) => !v.minimum_spend && v.vendor_id).map((v:any) => v.vendor_id);
-      if (vids.length) {
-        supabase.from("vendor_menu").select("vendor_id,price").in("vendor_id", vids).eq("is_available", true)
-          .then(({ data: md }) => {
-            const map: Record<string,number> = {};
-            (md||[]).forEach((i:any) => { if (!map[i.vendor_id]||i.price<map[i.vendor_id]) map[i.vendor_id]=i.price; });
-            setMenuPrices(map);
-          });
-      }
-    });
-  }, []);
-
-  const loadMore = async () => {
-    if (isFetchingMore || !hasMore) return;
-    setIsFetchingMore(true);
-    const next = currentPage + 1;
-    const data = await fetchPage(next);
-    setAllVenues(prev => [...prev, ...data]);
-    setHasMore(data.length === PAGE_SIZE);
-    setCurrentPage(next);
-    setIsFetchingMore(false);
+  const enrichMenuPrices = (data: any[]) => {
     const vids = data.filter((v:any) => !v.minimum_spend && v.vendor_id).map((v:any) => v.vendor_id);
     if (vids.length) {
       supabase.from("vendor_menu").select("vendor_id,price").in("vendor_id", vids).eq("is_available", true)
@@ -95,6 +92,54 @@ export default function ClubPage(){
     }
   };
 
+  const initFetch = async (city: string) => {
+    setIsLoading(true);
+    setAllVenues([]);
+    setSeenIds(new Set());
+    setShowNationalDivider(false);
+    const { neighbourhood, city: cityName } = parseLocation(city);
+    const startPhase: "neighbourhood"|"city"|"national" =
+      !neighbourhood && !cityName ? "national" : neighbourhood ? "neighbourhood" : "city";
+    setPhase(startPhase);
+    setPhasePageNum(0);
+    const data = await fetchPhase(startPhase, 0, city, new Set());
+    setAllVenues(data);
+    setSeenIds(new Set(data.map((v:any) => v.id)));
+    setHasMore(data.length === PAGE_SIZE || (data.length < PAGE_SIZE && startPhase !== "national"));
+    setIsLoading(false);
+    enrichMenuPrices(data);
+  };
+
+  useEffect(() => { initFetch(userCity); }, [userCity]);
+
+  const loadMore = async () => {
+    if (isFetchingMore || !hasMore) return;
+    setIsFetchingMore(true);
+    const { neighbourhood, city: cityName } = parseLocation(userCity);
+    let currentPhase: "neighbourhood" | "city" | "national" = phase;
+    let currentPageNum = phasePageNum + 1;
+    let data = await fetchPhase(currentPhase, currentPageNum, userCity, seenIds);
+    if (data.length < PAGE_SIZE) {
+      if (currentPhase === "neighbourhood" && cityName) {
+        currentPhase = "city"; currentPageNum = 0;
+        data = await fetchPhase(currentPhase, currentPageNum, userCity, seenIds);
+      } else if (currentPhase !== "national") {
+        currentPhase = "national"; currentPageNum = 0;
+        setShowNationalDivider(true);
+        data = await fetchPhase(currentPhase, currentPageNum, userCity, seenIds);
+      }
+    }
+    if (data.length > 0) {
+      setAllVenues(prev => [...prev, ...data]);
+      setSeenIds(prev => { const s = new Set(prev); data.forEach((v:any) => s.add(v.id)); return s; });
+      enrichMenuPrices(data);
+    }
+    setPhase(currentPhase);
+    setPhasePageNum(currentPageNum);
+    setHasMore(data.length > 0);
+    setIsFetchingMore(false);
+  };
+
   useEffect(() => {
     const el = bottomRef.current;
     if (!el) return;
@@ -104,7 +149,7 @@ export default function ClubPage(){
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [isFetchingMore, hasMore, currentPage]);
+  }, [isFetchingMore, hasMore, phase, phasePageNum, seenIds, userCity]);
 
   const{data:savedVenueIds}=useQuery({queryKey:["saved-venues",user?.id,CATEGORY],queryFn:async()=>{if(!user?.id)return[];const{data}=await(supabase.from("saved_venues")as any).select("venue_id").eq("user_id",user.id);return(data||[]).map((r:any)=>r.venue_id)as string[];},enabled:!!user?.id,staleTime:1000*60});
   const isWeekend=(d:Date)=>{const day=d.getDay();return day===0||day===5||day===6;};const now=new Date();
@@ -148,7 +193,17 @@ export default function ClubPage(){
           </div>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
             {anyActive&&<button onClick={clearAll} style={{display:"flex",alignItems:"center",gap:4,background:"none",border:"1px solid #FECACA",borderRadius:999,padding:"4px 10px",cursor:"pointer"}}><X size={10} style={{color:"#EF4444"}}/><span style={{fontSize:11,fontWeight:700,color:"#EF4444"}}>Clear</span></button>}
-            <LocationPill onCityResolved={(c)=>{setUserCity(c);navigator.geolocation?.getCurrentPosition((pos)=>{setUserLat(pos.coords.latitude);setUserLng(pos.coords.longitude);},()=>{});}}/>
+            <LocationHeader
+              onLocationResolved={(city) => {
+                setUserCity(city === "__everywhere__" ? "__everywhere__" : city);
+                if (city !== "__everywhere__") {
+                  navigator.geolocation?.getCurrentPosition(
+                    (pos) => { setUserLat(pos.coords.latitude); setUserLng(pos.coords.longitude); },
+                    () => {}
+                  );
+                }
+              }}
+            />
           </div>
         </div>
         <div style={{display:"flex",gap:8,padding:"0 16px 12px",overflowX:"auto",scrollbarWidth:"none"}}>
@@ -174,6 +229,12 @@ export default function ClubPage(){
           </motion.div></>)}
         </AnimatePresence>
       </div>
+      {showNationalDivider && allVenues.length > 0 && (
+        <div style={{ margin:"8px 16px 0", backgroundColor:"#F7F5FA", borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", gap:8 }}>
+          <span style={{ fontSize:16 }}>🇳🇬</span>
+          <p style={{ fontSize:12, fontWeight:700, color:"#6B6B6B", margin:0 }}>More from across Nigeria</p>
+        </div>
+      )}
       <div style={{padding:"16px"}}>
         {isLoading?(<div style={{display:"flex",flexDirection:"column",gap:14}}>{Array.from({length:4}).map((_,i)=><div key={i} style={{height:260,borderRadius:20,backgroundColor:"#F2EEF9"}}/>)}</div>)
         :filtered.length===0?(<div style={{textAlign:"center",paddingTop:80}}><div style={{fontSize:48,marginBottom:16}}>{showSaved?"❤️":CATEGORY_EMOJI}</div><p style={{fontWeight:800,fontSize:16,color:"#0A0A0A",margin:"0 0 6px"}}>{showSaved?"No saved clubs yet":"No clubs found"}</p><p style={{fontSize:13,color:"#9E9E9E",margin:"0 0 20px"}}>{showSaved?"Tap the heart on any venue to save it":"Try adjusting your filters"}</p><button onClick={clearAll} style={{padding:"10px 28px",borderRadius:12,border:"none",backgroundColor:ACCENT,color:"#FFFFFF",fontSize:13,fontWeight:700,cursor:"pointer"}}>Clear filters</button></div>)

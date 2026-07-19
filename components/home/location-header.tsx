@@ -65,7 +65,7 @@ export function LocationHeader({ onLocationResolved, onShowConfirm, onHideConfir
         if (parsed.mode === "off") {
           setMode("off");
           setDisplay("Everywhere");
-          notify("Lagos");
+          notify("__everywhere__");
           return;
         }
         if (parsed.mode === "manual" && parsed.location) {
@@ -156,7 +156,7 @@ export function LocationHeader({ onLocationResolved, onShowConfirm, onHideConfir
   const setOff = () => {
     setDisplay("Everywhere");
     setMode("off");
-    notify("Lagos");
+    notify("__everywhere__");
     setShowPicker(false);
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       mode: "off", location: "", confirmed: true, savedAt: Date.now(),
@@ -233,7 +233,7 @@ export function LocationHeader({ onLocationResolved, onShowConfirm, onHideConfir
             >
               {/* Handle + header */}
               <div style={{ padding:"16px 20px 0", flexShrink:0 }}>
-                <div style={{ width:40, height:4, backgroundColor:"#E4DCF0", borderRadius:999, margin:"0 auto 16px" }}/>
+                <div style={{ width:40, height:4, backgroundColor:"#E4DCF0", borderRadius:999, margin:"12px auto 14px" }}/>
                 <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
                   <h3 style={{ fontSize:17, fontWeight:900, color:"#0A0A0A", margin:0, fontFamily:"var(--font-display,Syne,sans-serif)" }}>
                     Choose Location
@@ -319,7 +319,7 @@ export function LocationHeader({ onLocationResolved, onShowConfirm, onHideConfir
                     {filteredCities.map(city => (
                       <button
                         key={city}
-                        onClick={() => selectCity(city)}
+                        onClick={() => selectCity(city, `${city}, Nigeria`)}
                         style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"13px 14px", borderRadius:14, border:"none", backgroundColor:display===city&&mode==="manual"?"#EDE0F7":"transparent", cursor:"pointer", marginBottom:4, textAlign:"left" }}
                       >
                         <div style={{ display:"flex", alignItems:"center", gap:10 }}>

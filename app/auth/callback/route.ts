@@ -35,6 +35,10 @@ export async function GET(req: NextRequest) {
       type: type as any,
     });
     if (!error) {
+      if (type === "recovery") {
+        // Password reset — go to reset page, session is now active
+        return NextResponse.redirect(`${origin}/reset-password`);
+      }
       if (type === "signup") {
         const redirectNext = next && next !== "/" ? next : "/home";
         return NextResponse.redirect(`${origin}/login?confirmed=true&next=${encodeURIComponent(redirectNext)}`);
@@ -55,10 +59,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${origin}/login?error=auth_failed`);
   }
 
-  // Recovery flow — send straight to reset password page
-  if (next === "/reset-password") {
-    return NextResponse.redirect(`${origin}/reset-password`);
-  }
+  
 
   const accountType = data.user.user_metadata?.account_type;
   const redirectTo  = accountType === "vendor"

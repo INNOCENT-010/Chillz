@@ -7,8 +7,9 @@ import { MainLayout } from "@/components/layout/main-layout";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Search, X, MapPin, SlidersHorizontal,
-  Star, Clock, ChevronDown, Zap, Utensils, Heart,
+  Star, Clock, Zap, ChevronDown, Utensils, Heart,
 } from "lucide-react";
+import { LocationHeader } from "@/components/home/location-header";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { isOpenNowWAT, getOpenStatusLabel } from "@/lib/time-utils";
@@ -119,11 +120,7 @@ function RestaurantCard({ venue, savedIds, onToggleSave }: {
               ))}
             </div>
           )}
-          {!pressing && images.length > 1 && (
-            <div style={{ position: "absolute", top: 8, right: 10, backgroundColor: "rgba(0,0,0,0.45)", borderRadius: 999, padding: "2px 8px" }}>
-              <span style={{ fontSize: 9, fontWeight: 700, color: "#FFFFFF" }}>Hold to browse</span>
-            </div>
-          )}
+          
 
           {/* Save / heart */}
           <button
@@ -132,12 +129,14 @@ function RestaurantCard({ venue, savedIds, onToggleSave }: {
             <Heart size={15} style={{ color: isSaved ? "#EF4444" : "#9E9E9E", fill: isSaved ? "#EF4444" : "none" }} />
           </button>
 
-          {/* Open badge — only show if we have reliable hours data */}
           {hasHours && (
-            <div style={{ position: "absolute", top: 10, right: 10 }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: "#FFFFFF", backgroundColor: isOpen ? "rgba(0,200,83,0.85)" : "rgba(239,68,68,0.85)", padding: "3px 9px", borderRadius: 999 }}>
-                {isOpen ? "Open" : "Closed"}
-              </span>
+            <div style={{ position: "absolute", top: 12, right: 12 }}>
+              <div style={{
+                width: 10, height: 10, borderRadius: "50%",
+                backgroundColor: isOpen ? "#00C853" : "#EF4444",
+                animation: isOpen ? "breatheGreen 2s ease-in-out infinite" : "breatheRed 2s ease-in-out infinite",
+                boxShadow: isOpen ? "0 0 0 0 rgba(0,200,83,0.4)" : "0 0 0 0 rgba(239,68,68,0.4)",
+              }}/>
             </div>
           )}
 
@@ -260,37 +259,85 @@ export default function RestaurantsPage() {
   const [isLoading,      setIsLoading]      = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [hasMore,        setHasMore]        = useState(true);
-  const [currentPage,    setCurrentPage]    = useState(0);
+  const [phase,          setPhase]          = useState<"neighbourhood"|"city"|"national">("neighbourhood");
+  const [phasePageNum,   setPhasePageNum]   = useState(0);
+  const [seenIds,        setSeenIds]        = useState<Set<string>>(new Set());
+  const [showNationalDivider, setShowNationalDivider] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const fetchPage = async (pageNum: number) => {
+  function parseLocation(loc: string): { neighbourhood: string | null; city: string | null } {
+    if (!loc || loc === "__everywhere__") return { neighbourhood: null, city: null };
+    const parts = loc.split(",").map(s => s.trim()).filter(Boolean);
+    if (parts.length === 1) return { neighbourhood: null, city: parts[0] };
+    return { neighbourhood: parts[0], city: parts[1] };
+  }
+
+  const fetchPhase = async (
+    currentPhase: "neighbourhood"|"city"|"national",
+    pageNum: number,
+    city: string,
+    currentSeenIds: Set<string>
+  ) => {
     const from = pageNum * PAGE_SIZE;
-    const { data } = await (supabase.from("venues") as any)
+    const { neighbourhood, city: cityName } = parseLocation(city);
+    let query = (supabase.from("venues") as any)
       .select("id,name,address,images,rating,review_count,filters,tags,category,opening_hours,lat,lng,is_featured,minimum_spend,vendor_id,source,bookings_enabled,google_data")
       .eq("is_active", true)
       .in("category", ["restaurant","cafe"])
       .order("rating", { ascending: false })
       .range(from, from + PAGE_SIZE - 1);
-    return (data || []) as any[];
+    if (currentPhase === "neighbourhood" && neighbourhood) {
+      query = query.or(`address.ilike.%${neighbourhood}%,city.ilike.%${neighbourhood}%`);
+    } else if (currentPhase === "city" && cityName) {
+      query = query.or(`address.ilike.%${cityName}%,city.ilike.%${cityName}%`);
+    }
+    const { data } = await query;
+    return ((data || []) as any[]).filter((v: any) => !currentSeenIds.has(v.id));
   };
 
-  useEffect(() => {
+  const initFetch = async (city: string) => {
     setIsLoading(true);
-    fetchPage(0).then(data => {
-      setVenues(data);
-      setHasMore(data.length === PAGE_SIZE);
-      setIsLoading(false);
-    });
-  }, []);
+    setVenues([]);
+    setSeenIds(new Set());
+    setShowNationalDivider(false);
+    const { neighbourhood, city: cityName } = parseLocation(city);
+    const startPhase: "neighbourhood"|"city"|"national" =
+      !neighbourhood && !cityName ? "national" : neighbourhood ? "neighbourhood" : "city";
+    setPhase(startPhase);
+    setPhasePageNum(0);
+    const data = await fetchPhase(startPhase, 0, city, new Set());
+    setVenues(data);
+    setSeenIds(new Set(data.map((v:any) => v.id)));
+    setHasMore(data.length === PAGE_SIZE || (data.length < PAGE_SIZE && startPhase !== "national"));
+    setIsLoading(false);
+  };
+
+  useEffect(() => { initFetch(userCity); }, [userCity]);
 
   const loadMore = async () => {
     if (isFetchingMore || !hasMore) return;
     setIsFetchingMore(true);
-    const next = currentPage + 1;
-    const data = await fetchPage(next);
-    setVenues(prev => [...prev, ...data]);
-    setHasMore(data.length === PAGE_SIZE);
-    setCurrentPage(next);
+    const { neighbourhood, city: cityName } = parseLocation(userCity);
+    let currentPhase: "neighbourhood" | "city" | "national" = phase;
+    let currentPageNum = phasePageNum + 1;
+    let data = await fetchPhase(currentPhase, currentPageNum, userCity, seenIds);
+    if (data.length < PAGE_SIZE) {
+      if (currentPhase === "neighbourhood" && cityName) {
+        currentPhase = "city"; currentPageNum = 0;
+        data = await fetchPhase(currentPhase, currentPageNum, userCity, seenIds);
+      } else if (currentPhase !== "national") {
+        currentPhase = "national"; currentPageNum = 0;
+        setShowNationalDivider(true);
+        data = await fetchPhase(currentPhase, currentPageNum, userCity, seenIds);
+      }
+    }
+    if (data.length > 0) {
+      setVenues(prev => [...prev, ...data]);
+      setSeenIds(prev => { const s = new Set(prev); data.forEach((v:any) => s.add(v.id)); return s; });
+    }
+    setPhase(currentPhase);
+    setPhasePageNum(currentPageNum);
+    setHasMore(data.length > 0);
     setIsFetchingMore(false);
   };
 
@@ -303,7 +350,7 @@ export default function RestaurantsPage() {
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [isFetchingMore, hasMore, currentPage]);
+  }, [isFetchingMore, hasMore, phase, phasePageNum, seenIds, userCity]);
 
   // Saved venues
   const { data: savedVenueIds = [], refetch: refetchSaved } = useQuery({
@@ -397,7 +444,17 @@ export default function RestaurantsPage() {
                 <span style={{ fontSize: 11, fontWeight: 700, color: "#EF4444" }}>Clear</span>
               </button>
             )}
-            <LocationPill onCityResolved={c => { setUserCity(c); navigator.geolocation?.getCurrentPosition(p => { setUserLat(p.coords.latitude); setUserLng(p.coords.longitude); }, () => {}); }} />
+            <LocationHeader
+              onLocationResolved={(city) => {
+                setUserCity(city === "__everywhere__" ? "__everywhere__" : city);
+                if (city !== "__everywhere__") {
+                  navigator.geolocation?.getCurrentPosition(
+                    (p) => { setUserLat(p.coords.latitude); setUserLng(p.coords.longitude); },
+                    () => {}
+                  );
+                }
+              }}
+            />
           </div>
         </div>
 
@@ -526,6 +583,12 @@ export default function RestaurantsPage() {
         </AnimatePresence>
       </div>
 
+      {showNationalDivider && venues.length > 0 && (
+        <div style={{ margin:"8px 16px 0", backgroundColor:"#FEF3C7", borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", gap:8 }}>
+          <span style={{ fontSize:16 }}>🇳🇬</span>
+          <p style={{ fontSize:12, fontWeight:700, color:"#D97706", margin:0 }}>More from across Nigeria</p>
+        </div>
+      )}
       {/* Venue list */}
       <div style={{ padding: "14px 16px" }}>
         {isLoading ? (
@@ -558,13 +621,6 @@ export default function RestaurantsPage() {
         )}
       </div>
 
-      {/* Infinite scroll sentinel */}
-      <div ref={bottomRef} style={{height:1}}/>
-      {isFetchingMore && (
-        <div style={{display:"flex",justifyContent:"center",padding:"16px 0"}}>
-          <div style={{width:24,height:24,borderRadius:"50%",border:`2.5px solid ${ACCENT_BG}`,borderTopColor:ACCENT,animation:"spin 0.8s linear infinite"}}/>
-        </div>
-      )}
       <div ref={bottomRef} style={{ height: 1 }} />
       {isFetchingMore && (
         <div style={{ display:"flex", justifyContent:"center", padding:"20px 0" }}>
@@ -574,7 +630,12 @@ export default function RestaurantsPage() {
       {!hasMore && venues.length > 0 && (
         <p style={{ textAlign:"center", fontSize:12, color:"#C4BAD8", padding:"16px 0 32px" }}>You've seen all restaurants ✓</p>
       )}
-      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <style>{`
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        @keyframes breatheGreen{0%,100%{box-shadow:0 0 0 0 rgba(0,200,83,0.5)}50%{box-shadow:0 0 0 6px rgba(0,200,83,0)}}
+        @keyframes breatheRed{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.5)}50%{box-shadow:0 0 0 6px rgba(239,68,68,0)}}
+      `}</style>
     </MainLayout>
   );
 }

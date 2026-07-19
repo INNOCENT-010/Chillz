@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { Mail, ArrowRight, Eye, EyeOff, Lock, X, Building2, ArrowLeft, CheckCircle } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 
 const STORAGE_KEY = "chillz_past_emails";
 
@@ -22,6 +23,12 @@ export default function LoginPage() {
   const [resetEmail, setResetEmail] = useState("");
   const [error, setError] = useState("");
   const [resetError, setResetError] = useState("");
+  const [confirmed, setConfirmed] = useState(false);
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get("confirmed") === "true") setConfirmed(true);
+  }, [searchParams]);
 
   useEffect(() => {
     try {
@@ -148,6 +155,18 @@ export default function LoginPage() {
           {/* ── LOGIN VIEW ── */}
           {view === "login" && (
             <motion.div key="login" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+              {confirmed && (
+                <motion.div initial={{ opacity:0, y:-8 }} animate={{ opacity:1, y:0 }}
+                  style={{ backgroundColor:"#E0F7EA", border:"1px solid #A7F3D0", borderRadius:14, padding:"14px 16px", display:"flex", alignItems:"flex-start", gap:10 }}>
+                  <CheckCircle size={18} style={{ color:"#00C853", flexShrink:0, marginTop:1 }}/>
+                  <div>
+                    <p style={{ fontSize:13, fontWeight:700, color:"#059669", margin:"0 0 2px" }}>Email confirmed!</p>
+                    <p style={{ fontSize:12, color:"#065F46", margin:0, lineHeight:1.5 }}>Your account is verified. Sign in below to get started.</p>
+                  </div>
+                </motion.div>
+              )}
+
               <div>
                 <h2 style={{ fontSize: 22, fontWeight: 900, color: "#0A0A0A", margin: "0 0 4px", fontFamily: "var(--font-display, Syne, sans-serif)" }}>Welcome back</h2>
                 <p style={{ fontSize: 13, color: "#9E9E9E", margin: 0 }}>Sign in to your Chillz account</p>
