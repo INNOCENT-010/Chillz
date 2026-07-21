@@ -44,6 +44,46 @@ const SEARCH_QUERIES = [
   { query: "hotels in Abuja Nigeria",                  category: "hotel"      },
   { query: "hotels in Maitama Abuja Nigeria",          category: "hotel"      },
   { query: "luxury hotels Lagos Nigeria",              category: "hotel"      },
+  // Enugu
+  { query: "bars in Enugu Nigeria",              category: "bar-lounge" },
+  { query: "restaurants in Enugu Nigeria",       category: "restaurant" },
+  { query: "clubs in Enugu Nigeria",             category: "club"       },
+  { query: "hotels in Enugu Nigeria",            category: "hotel"      },
+  // Ibadan
+  { query: "bars in Ibadan Oyo Nigeria",         category: "bar-lounge" },
+  { query: "restaurants in Ibadan Nigeria",      category: "restaurant" },
+  { query: "hotels in Ibadan Nigeria",           category: "hotel"      },
+  // Benin City
+  { query: "bars in Benin City Nigeria",         category: "bar-lounge" },
+  { query: "restaurants in Benin City Nigeria",  category: "restaurant" },
+  { query: "hotels in Benin City Nigeria",       category: "hotel"      },
+  // Warri
+  { query: "bars and lounges in Warri Nigeria",  category: "bar-lounge" },
+  { query: "restaurants in Warri Nigeria",       category: "restaurant" },
+  { query: "hotels in Warri Delta Nigeria",      category: "hotel"      },
+  // Calabar
+  { query: "bars in Calabar Nigeria",            category: "bar-lounge" },
+  { query: "restaurants in Calabar Nigeria",     category: "restaurant" },
+  { query: "hotels in Calabar Nigeria",          category: "hotel"      },
+  // Owerri
+  { query: "bars in Owerri Imo Nigeria",         category: "bar-lounge" },
+  { query: "restaurants in Owerri Nigeria",      category: "restaurant" },
+  { query: "hotels in Owerri Nigeria",           category: "hotel"      },
+  // Uyo
+  { query: "bars in Uyo Akwa Ibom Nigeria",      category: "bar-lounge" },
+  { query: "restaurants in Uyo Nigeria",         category: "restaurant" },
+  { query: "hotels in Uyo Nigeria",              category: "hotel"      },
+  // Kano
+  { query: "restaurants in Kano Nigeria",        category: "restaurant" },
+  { query: "hotels in Kano Nigeria",             category: "hotel"      },
+  // Abeokuta
+  { query: "bars in Abeokuta Ogun Nigeria",      category: "bar-lounge" },
+  { query: "restaurants in Abeokuta Nigeria",    category: "restaurant" },
+  { query: "hotels in Abeokuta Nigeria",         category: "hotel"      },
+  // Asaba
+  { query: "bars in Asaba Delta Nigeria",        category: "bar-lounge" },
+  { query: "restaurants in Asaba Nigeria",       category: "restaurant" },
+  { query: "hotels in Asaba Nigeria",            category: "hotel"      },
 ];
 
 // Convert Places API (New) price level string to number 1-4
